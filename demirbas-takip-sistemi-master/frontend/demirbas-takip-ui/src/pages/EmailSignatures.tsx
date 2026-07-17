@@ -129,7 +129,7 @@ function buildSignatureHtml(
     .join('');
 
   const infoCells = personImg
-    ? `<td style="vertical-align:top;"><img src="${personImg.url}" width="${personImg.width}" alt="Personel Bilgileri" style="display:block;border:none;" /></td>`
+    ? `<td style="vertical-align:top;">${f.website ? `<a href="${websiteHref}" target="_blank" rel="noopener" style="text-decoration:none;border:none;">` : ''}<img src="${personImg.url}" width="${personImg.width}" alt="Personel Bilgileri" style="display:block;border:none;" />${f.website ? '</a>' : ''}</td>`
     : `<td style="vertical-align:top;padding:2px 16px 2px 0;word-break:break-word;overflow-wrap:break-word;">
         <div style="font-weight:bold;">${esc(f.fullName)}</div>
         ${f.title ? `<div>${esc(f.title)}</div>` : ''}
