@@ -443,6 +443,17 @@ async function renderCompactPng(
   return { url: cv.toDataURL('image/png'), width: Math.round(W / scale) };
 }
 
+/** Türk telefon numarasını biçimlendirir: 5442752525 -> 0544 275 25 25 */
+function formatTrPhone(raw: string): string {
+  let d = (raw || '').replace(/\D/g, '');
+  if (d.length === 12 && d.startsWith('90')) d = '0' + d.slice(2);
+  else if (d.length === 10) d = '0' + d;
+  if (d.length === 11 && d.startsWith('0')) {
+    return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7, 9)} ${d.slice(9, 11)}`;
+  }
+  return raw;
+}
+
 export default function EmailSignatures() {
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -470,6 +481,8 @@ export default function EmailSignatures() {
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [bulkIds, setBulkIds] = useState<number[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [personImg, setPersonImg] = useState<{ url: string; width: number } | null>(null);
 
   useEffect(() => {
@@ -513,15 +526,11 @@ export default function EmailSignatures() {
     return { addressLine1: parts[0] ?? '', addressLine2: parts.slice(1).join(', ') };
   };
 
-  const onSelectPersonnel = (idStr: string) => {
-    const id = idStr ? Number(idStr) : '';
-    setSelectedId(id);
-    if (!id) return;
-    const p = personnel.find((x) => x.id === id);
-    if (!p) return;
+  const fieldsForPersonnel = (p: any): SigFields => {
     const company = detectCompany(p.companyName);
     const loc = locations.find((l) => l.id === p.signatureLocationId);
-    setFields({
+    const addr = companyAddressLines(company);
+    return {
       company,
       greeting: GREETING_DEFAULT,
       fullName: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim(),
@@ -529,13 +538,24 @@ export default function EmailSignatures() {
       englishTitle: p.englishTitle ?? '',
       companyName: PRESETS[company].companyDisplayName,
       city: loc?.displayName ?? loc?.name ?? '',
-      addressLine1: companyAddressLines(company)?.addressLine1 ?? loc?.addressLine1 ?? '',
-      addressLine2: companyAddressLines(company)?.addressLine2 ?? loc?.addressLine2 ?? '',
-      phone: (company === 'ogas' ? loc?.ogasPhone : loc?.lokumPhone) ?? p.phone ?? '',
+      addressLine1: addr?.addressLine1 ?? loc?.addressLine1 ?? '',
+      addressLine2: addr?.addressLine2 ?? loc?.addressLine2 ?? '',
+      phone: formatTrPhone(
+        (company === 'ogas' ? loc?.ogasPhone : loc?.lokumPhone) ?? p.phone ?? '',
+      ),
       mobile: '',
       email: p.email ?? '',
       website: PRESETS[company].website,
-    });
+    };
+  };
+
+  const onSelectPersonnel = (idStr: string) => {
+    const id = idStr ? Number(idStr) : '';
+    setSelectedId(id);
+    if (!id) return;
+    const p = personnel.find((x) => x.id === id);
+    if (!p) return;
+    setFields(fieldsForPersonnel(p));
     setRawMode(false);
   };
 
@@ -626,10 +646,63 @@ export default function EmailSignatures() {
     }
   };
 
+  const buildDoc = async (flds: SigFields): Promise<string> => {
+    const img =
+      format === 'compact'
+        ? await renderCompactPng(flds)
+        : await renderPersonnelPng(flds);
+    const inner =
+      format === 'compact'
+        ? buildCompactHtml(flds, img)
+        : buildSignatureHtml(flds, img);
+    const embedded = await embedImages(inner);
+    return `<html>\n<head>\n<meta charset="utf-8">\n<title>Imza</title>\n</head>\n<body style="margin:0;padding:0;">\n${embedded}\n</body>\n</html>`;
+  };
+
+  const toggleBulk = (id: number) =>
+    setBulkIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  const allBulkSelected =
+    personnel.length > 0 && bulkIds.length === personnel.length;
+  const toggleAllBulk = () =>
+    setBulkIds(allBulkSelected ? [] : personnel.map((p) => p.id));
+
+  const handleBulk = async () => {
+    if (bulkIds.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      for (const id of bulkIds) {
+        const p = personnel.find((x) => x.id === id);
+        if (!p) continue;
+        const flds = fieldsForPersonnel(p);
+        const doc = await buildDoc(flds);
+        const safe = (flds.fullName || 'imza').replace(/[^\p{L}\p{N}]+/gu, '_');
+        zip.file(`${PRESETS[flds.company].label}_${safe}.htm`, doc);
+      }
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `imzalar_${format === 'compact' ? 'kisa' : 'tam'}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Toplu üretim hatası:', e);
+      alert('Toplu üretim sırasında hata oluştu. Konsolu kontrol edin.');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const field = (
     label: string,
     key: keyof SigFields,
-    opts: { textarea?: boolean; col?: string } = {},
+    opts: { textarea?: boolean; col?: string; format?: (v: string) => string } = {},
   ) => (
     <div className={`${opts.col ?? 'col-md-6'} mb-2`}>
       <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
@@ -647,6 +720,11 @@ export default function EmailSignatures() {
           className="form-control"
           value={fields[key] as string}
           onChange={(e) => set(key, e.target.value)}
+          onBlur={
+            opts.format
+              ? (e) => set(key, opts.format!(e.target.value))
+              : undefined
+          }
         />
       )}
     </div>
@@ -754,8 +832,8 @@ export default function EmailSignatures() {
                 {field('Firma Adı (metin)', 'companyName', { textarea: true, col: 'col-12' })}
                 {field('Adres Satır 1', 'addressLine1', { textarea: true, col: 'col-12' })}
                 {field('Adres Satır 2', 'addressLine2', { textarea: true, col: 'col-12' })}
-                {field('Sabit Telefon', 'phone')}
-                {field('Cep Telefonu', 'mobile')}
+                {field('Sabit Telefon', 'phone', { format: formatTrPhone })}
+                {field('Cep Telefonu', 'mobile', { format: formatTrPhone })}
                 {field('Web Sitesi', 'website')}
               </div>
             )}
@@ -775,6 +853,72 @@ export default function EmailSignatures() {
                 {downloading ? 'İndiriliyor…' : '⬇️ .htm olarak indir'}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Toplu üretim */}
+        <div className="col-12 mb-4">
+          <div className="card p-3">
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <strong style={{ fontSize: 13 }}>👥 TOPLU İMZA ÜRETİMİ</strong>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Format: {format === 'compact' ? 'Kısa' : 'Tam'}
+              </span>
+            </div>
+            <div className="form-check mb-2">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="bulk-all"
+                checked={allBulkSelected}
+                onChange={toggleAllBulk}
+              />
+              <label
+                className="form-check-label"
+                htmlFor="bulk-all"
+                style={{ fontSize: 12, fontWeight: 600 }}
+              >
+                Tümünü seç ({bulkIds.length}/{personnel.length})
+              </label>
+            </div>
+            <div
+              style={{
+                maxHeight: 220,
+                overflowY: 'auto',
+                border: '1px solid #e0e0e0',
+                borderRadius: 6,
+                padding: 8,
+              }}
+            >
+              {personnel.map((p) => (
+                <div className="form-check" key={p.id}>
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id={`bulk-${p.id}`}
+                    checked={bulkIds.includes(p.id)}
+                    onChange={() => toggleBulk(p.id)}
+                  />
+                  <label
+                    className="form-check-label"
+                    htmlFor={`bulk-${p.id}`}
+                    style={{ fontSize: 12 }}
+                  >
+                    {p.firstName} {p.lastName}
+                    {p.companyName ? ` — ${p.companyName}` : ''}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <button
+              className="btn btn-primary mt-3"
+              onClick={handleBulk}
+              disabled={bulkBusy || bulkIds.length === 0}
+            >
+              {bulkBusy
+                ? 'Üretiliyor…'
+                : `⬇️ Seçilenleri ZIP indir (${bulkIds.length})`}
+            </button>
           </div>
         </div>
 
