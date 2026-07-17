@@ -109,6 +109,17 @@ function boldNames(text: string, names: string[]): string {
 }
 
 /** Form alanlarından imza HTML'i üretir (görseller URL olarak). */
+/** Kısa imza: sadece selamlama + isim + unvan + İngilizce unvan + firma. */
+function buildCompactHtml(f: SigFields): string {
+  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;">
+  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
+  <div style="font-size:10pt;font-weight:bold;">${esc(f.fullName)}</div>
+  ${f.title ? `<div>${esc(f.title)}</div>` : ''}
+  ${f.englishTitle ? `<div style="font-style:italic;">${esc(f.englishTitle)}</div>` : ''}
+  ${f.companyName ? `<div style="font-weight:bold;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}
+</div>`;
+}
+
 function buildSignatureHtml(
   f: SigFields,
   personImg?: { url: string; width: number },
@@ -355,6 +366,7 @@ export default function EmailSignatures() {
     website: PRESETS.lokum.website,
   });
 
+  const [format, setFormat] = useState<'full' | 'compact'>('full');
   const [rawMode, setRawMode] = useState(false);
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
@@ -432,8 +444,11 @@ export default function EmailSignatures() {
   }, [fields]);
 
   const generatedHtml = useMemo(
-    () => buildSignatureHtml(fields, personImg ?? undefined),
-    [fields, personImg],
+    () =>
+      format === 'compact'
+        ? buildCompactHtml(fields)
+        : buildSignatureHtml(fields, personImg ?? undefined),
+    [fields, personImg, format],
   );
   const previewHtml = rawMode ? rawHtml : generatedHtml;
 
@@ -533,6 +548,27 @@ export default function EmailSignatures() {
                     onClick={() => onChangeCompany(c)}
                   >
                     {PRESETS[c].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
+                İMZA FORMATI
+              </label>
+              <div className="btn-group w-100">
+                {([['full', 'Tam İmza'], ['compact', 'Kısa İmza']] as [
+                  'full' | 'compact',
+                  string,
+                ][]).map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={`btn btn-sm ${format === val ? 'btn-primary' : 'btn-outline-primary'}`}
+                    onClick={() => setFormat(val)}
+                  >
+                    {label}
                   </button>
                 ))}
               </div>
