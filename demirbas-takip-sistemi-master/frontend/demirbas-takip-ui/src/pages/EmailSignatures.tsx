@@ -483,6 +483,7 @@ export default function EmailSignatures() {
   const [copied, setCopied] = useState(false);
   const [bulkIds, setBulkIds] = useState<number[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [personImg, setPersonImg] = useState<{ url: string; width: number } | null>(null);
 
   useEffect(() => {
@@ -859,12 +860,21 @@ export default function EmailSignatures() {
         {/* Toplu üretim */}
         <div className="col-12 mb-4">
           <div className="card p-3">
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <strong style={{ fontSize: 13 }}>👥 TOPLU İMZA ÜRETİMİ</strong>
+            <div
+              className="d-flex justify-content-between align-items-center"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setBulkOpen((o) => !o)}
+            >
+              <strong style={{ fontSize: 13 }}>
+                {bulkOpen ? '▼' : '▶'} 👥 TOPLU İMZA ÜRETİMİ
+                {bulkIds.length > 0 ? ` — ${bulkIds.length} seçili` : ''}
+              </strong>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 Format: {format === 'compact' ? 'Kısa' : 'Tam'}
               </span>
             </div>
+            {bulkOpen && (
+              <div className="mt-3">
             <div className="form-check mb-2">
               <input
                 className="form-check-input"
@@ -919,6 +929,8 @@ export default function EmailSignatures() {
                 ? 'Üretiliyor…'
                 : `⬇️ Seçilenleri ZIP indir (${bulkIds.length})`}
             </button>
+              </div>
+            )}
           </div>
         </div>
 
