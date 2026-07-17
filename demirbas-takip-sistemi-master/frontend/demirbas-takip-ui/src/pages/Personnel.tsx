@@ -5,7 +5,7 @@ import Loader from '../components/common/Loader';
 import ColumnManager from '../components/common/ColumnManager';
 import { useColumnPreferences } from '../hooks/useColumnPreferences';
 import api from '../services/api';
-import type { Personnel, Department, Company } from '../types';
+import type { Personnel, Department, Company, Branch } from '../types';
 import type { ColumnDefinition } from '../types/columns';
 
 const PERSONNEL_COLS: ColumnDefinition[] = [
@@ -29,6 +29,7 @@ export default function PersonnelPage() {
   const [personnel, setPersonnel] = useState<Personnel[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -44,7 +45,7 @@ export default function PersonnelPage() {
   const [dismissalSaving, setDismissalSaving] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
-  const emptyForm = { firstName: '', lastName: '', departmentId: 0, companyId: 0, title: '', birthDate: '', email: '', phone: '', employmentDate: '' };
+  const emptyForm = { firstName: '', lastName: '', departmentId: 0, companyId: 0, branchId: 0, title: '', birthDate: '', email: '', phone: '', employmentDate: '' };
   const [form, setForm] = useState(emptyForm);
 
   // Column manager
@@ -55,12 +56,13 @@ export default function PersonnelPage() {
 
   const load = async () => {
     try {
-      const [pRes, dRes, cRes] = await Promise.all([
+      const [pRes, dRes, cRes, bRes] = await Promise.all([
         api.get<Personnel[]>('/personnel'),
         api.get<Department[]>('/personnel/departments'),
         api.get<Company[]>('/personnel/companies'),
+        api.get<Branch[]>('/branches').catch(() => ({ data: [] as Branch[] })),
       ]);
-      setPersonnel(pRes.data ?? []); setDepartments(dRes.data ?? []); setCompanies(cRes.data ?? []);
+      setPersonnel(pRes.data ?? []); setDepartments(dRes.data ?? []); setCompanies(cRes.data ?? []); setBranches(bRes.data ?? []);
     } catch { setError('VERİLER YÜKLENEMEDİ.'); }
     finally { setLoading(false); }
   };
@@ -70,7 +72,7 @@ export default function PersonnelPage() {
   const openEdit = (p: Personnel) => {
     setEditPerson(p);
     setForm({
-      firstName: p.firstName, lastName: p.lastName, departmentId: p.departmentId, companyId: p.companyId,
+      firstName: p.firstName, lastName: p.lastName, departmentId: p.departmentId, companyId: p.companyId, branchId: p.branchId ?? 0,
       title: p.title ?? '', birthDate: p.birthDate ? p.birthDate.substring(0, 10) : '',
       email: p.email ?? '', phone: p.phone ?? '',
       employmentDate: p.employmentDate ? p.employmentDate.substring(0, 10) : ''
@@ -86,7 +88,7 @@ export default function PersonnelPage() {
     }
     setSaving(true);
     try {
-      const body = { ...form, birthDate: form.birthDate || null, employmentDate: form.employmentDate || null };
+      const body = { ...form, branchId: form.branchId || null, birthDate: form.birthDate || null, employmentDate: form.employmentDate || null };
       if (editPerson) await api.put(`/personnel/${editPerson.id}`, { ...body, isActive: editPerson.isActive });
       else await api.post('/personnel', body);
       setShowAdd(false); await load();
@@ -103,7 +105,7 @@ export default function PersonnelPage() {
       const p = personnel.find(x => x.id === dismissalModal.id)!;
       await api.put(`/personnel/${p.id}`, {
         firstName: p.firstName, lastName: p.lastName, departmentId: p.departmentId, companyId: p.companyId,
-        title: p.title ?? '', birthDate: p.birthDate ?? null, email: p.email ?? '', phone: p.phone ?? '',
+        title: p.title ?? '', branchId: p.branchId ?? null, birthDate: p.birthDate ?? null, email: p.email ?? '', phone: p.phone ?? '',
         employmentDate: p.employmentDate ?? null, isActive: false, dismissalDate: dismissalModal.date,
       });
       setDismissalModal({ show: false, id: 0, name: '', date: new Date().toISOString().substring(0, 10) });
@@ -387,9 +389,20 @@ export default function PersonnelPage() {
               </div>
               <div className="col-md-6">
                 <label className="form-label">FİRMA *</label>
-                <select className="form-select" value={form.companyId} onChange={e => setForm(p => ({ ...p, companyId: Number(e.target.value) }))}>
+                <select className="form-select" value={form.companyId} onChange={e => setForm(p => ({ ...p, companyId: Number(e.target.value), branchId: 0 }))}>
                   <option value={0}>SEÇİN</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>)}
+                </select>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">ŞUBE</label>
+                <select className="form-select" value={form.branchId}
+                  onChange={e => setForm(p => ({ ...p, branchId: Number(e.target.value) }))}
+                  disabled={!form.companyId}>
+                  <option value={0}>{form.companyId ? 'ŞUBE YOK / SEÇİN' : 'ÖNCE FİRMA SEÇİN'}</option>
+                  {branches.filter(b => b.companyId === form.companyId).map(b => (
+                    <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>
+                  ))}
                 </select>
               </div>
               <div className="col-md-6">

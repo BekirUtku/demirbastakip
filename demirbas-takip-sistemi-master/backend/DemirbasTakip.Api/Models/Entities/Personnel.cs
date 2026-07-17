@@ -13,6 +13,7 @@ public class Personnel
     public string? Phone { get; set; }
     public string? EnglishTitle { get; set; }
     public int? SignatureLocationId { get; set; }
+    public int? BranchId { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime? EmploymentDate { get; set; }
     public DateTime? DismissalDate { get; set; }
@@ -26,6 +27,7 @@ public class Personnel
     public Department Department { get; set; } = null!;
     public Company Company { get; set; } = null!;
     public SignatureLocation? SignatureLocation { get; set; }
+    public Branch? Branch { get; set; }
 
     public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
 }

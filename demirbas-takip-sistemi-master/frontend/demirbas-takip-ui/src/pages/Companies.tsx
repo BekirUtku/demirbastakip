@@ -4,7 +4,7 @@ import Header from '../components/layout/Header';
 import Loader from '../components/common/Loader';
 import FilterableTable from '../components/common/FilterableTable';
 import api from '../services/api';
-import type { Company } from '../types';
+import type { Company, Branch } from '../types';
 
 interface CompanyForm {
   name: string;
@@ -15,6 +15,9 @@ interface CompanyForm {
 }
 
 const emptyForm: CompanyForm = { name: '', companyName: '', address: '', mailAddress: '', isActive: true };
+
+interface BranchForm { companyId: number; name: string; address: string; phone: string; isActive: boolean; }
+const emptyBranch: BranchForm = { companyId: 0, name: '', address: '', phone: '', isActive: true };
 
 export default function Companies() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -27,10 +30,20 @@ export default function Companies() {
   const [form, setForm] = useState<CompanyForm>(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [showBranch, setShowBranch] = useState(false);
+  const [branchEditId, setBranchEditId] = useState<number | null>(null);
+  const [branchForm, setBranchForm] = useState<BranchForm>(emptyBranch);
+  const [branchSaving, setBranchSaving] = useState(false);
+
   const load = async () => {
     try {
-      const res = await api.get<(Company & { personnelCount: number })[]>('/companies');
+      const [res, bRes] = await Promise.all([
+        api.get<(Company & { personnelCount: number })[]>('/companies'),
+        api.get<Branch[]>('/branches').catch(() => ({ data: [] as Branch[] })),
+      ]);
       setCompanies(res.data ?? []);
+      setBranches(bRes.data ?? []);
     } catch { setError('FİRMALAR YÜKLENEMEDİ.'); }
     finally { setLoading(false); }
   };
@@ -75,6 +88,35 @@ export default function Companies() {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setError(msg ?? 'İŞLEM GERÇEKLEŞTİRİLEMEDİ.');
     } finally { setSaving(false); }
+  };
+
+  const openAddBranch = () => { setBranchEditId(null); setBranchForm(emptyBranch); setShowBranch(true); };
+  const openEditBranch = (b: Branch) => {
+    setBranchEditId(b.id);
+    setBranchForm({ companyId: b.companyId, name: b.name, address: b.address ?? '', phone: b.phone ?? '', isActive: b.isActive });
+    setShowBranch(true);
+  };
+  const saveBranch = async () => {
+    if (!branchForm.companyId || !branchForm.name.trim()) { setError('FİRMA VE ŞUBE ADI ZORUNLUDUR.'); return; }
+    setBranchSaving(true);
+    try {
+      if (branchEditId) { await api.put(`/branches/${branchEditId}`, branchForm); setSuccess('ŞUBE GÜNCELLENDİ.'); }
+      else { await api.post('/branches', branchForm); setSuccess('ŞUBE OLUŞTURULDU.'); }
+      setShowBranch(false);
+      const bRes = await api.get<Branch[]>('/branches');
+      setBranches(bRes.data ?? []);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg ?? 'ŞUBE KAYDEDİLEMEDİ.');
+    } finally { setBranchSaving(false); }
+  };
+  const deleteBranch = async (id: number) => {
+    if (!window.confirm('Bu şube silinsin mi?')) return;
+    try {
+      await api.delete(`/branches/${id}`);
+      setBranches(prev => prev.filter(b => b.id !== id));
+      setSuccess('ŞUBE SİLİNDİ.');
+    } catch { setError('ŞUBE SİLİNEMEDİ.'); }
   };
 
   if (loading) return <><Header title="Firmalar" /><Loader /></>;
@@ -164,6 +206,88 @@ export default function Companies() {
             }}
           />
         </div>
+
+        <div className="page-header mt-4">
+          <h5 className="page-title">ŞUBELER ({branches.length})</h5>
+          <button className="btn btn-primary btn-sm" onClick={openAddBranch}>+ YENİ ŞUBE</button>
+        </div>
+
+        <div className="table-container">
+          <FilterableTable
+            columns={[
+              { key: 'companyName', label: 'FİRMA', filterable: true },
+              { key: 'name', label: 'ŞUBE ADI', filterable: true },
+              { key: 'address', label: 'ADRES', filterable: true },
+              { key: 'phone', label: 'SABİT TELEFON', filterable: true },
+              { key: 'personnelCount', label: 'AKTİF PERSONEL', filterable: false },
+              { key: 'actions', label: 'İŞLEM', filterable: false, width: '110px' },
+            ]}
+            data={branches as unknown as Record<string, unknown>[]}
+            renderRow={(row) => {
+              const b = row as unknown as Branch;
+              return (
+                <tr key={b.id}>
+                  <td style={{ fontSize: 12 }}>{b.companyName.toUpperCase()}</td>
+                  <td style={{ fontWeight: 700, fontSize: 12 }}>{b.name.toUpperCase()}</td>
+                  <td style={{ fontSize: 12 }}>{b.address || '-'}</td>
+                  <td style={{ fontSize: 12 }}>{b.phone || '-'}</td>
+                  <td style={{ fontSize: 12, textAlign: 'center' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{b.personnelCount ?? 0}</span>
+                  </td>
+                  <td>
+                    <div className="d-flex gap-1">
+                      <button className="action-btn" style={{ background: '#eff6ff', color: 'var(--primary)' }}
+                        title="DÜZENLE" onClick={() => openEditBranch(b)}>✏️</button>
+                      <button className="action-btn" style={{ background: '#fee2e2', color: 'var(--danger)' }}
+                        title="SİL" onClick={() => deleteBranch(b.id)}>🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            }}
+          />
+        </div>
+
+        <Modal show={showBranch} onHide={() => setShowBranch(false)} centered>
+          <Modal.Header closeButton>
+            <Modal.Title>{branchEditId ? 'ŞUBEYİ DÜZENLE' : 'YENİ ŞUBE EKLE'}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <div className="mb-3">
+              <label className="form-label">FİRMA *</label>
+              <select className="form-select" value={branchForm.companyId}
+                onChange={e => setBranchForm(p => ({ ...p, companyId: Number(e.target.value) }))}>
+                <option value={0}>SEÇİN</option>
+                {companies.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>)}
+              </select>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">ŞUBE ADI *</label>
+              <input className="form-control" value={branchForm.name}
+                onChange={e => setBranchForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="AFYON ÇARŞI" autoComplete="off" />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">ADRES</label>
+              <input className="form-control" value={branchForm.address}
+                onChange={e => setBranchForm(p => ({ ...p, address: e.target.value }))}
+                placeholder="Şube adresi (opsiyonel)" autoComplete="off" />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">SABİT TELEFON</label>
+              <input className="form-control" value={branchForm.phone}
+                onChange={e => setBranchForm(p => ({ ...p, phone: e.target.value }))}
+                placeholder="0272 000 00 00 (opsiyonel)" autoComplete="off" />
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowBranch(false)}>İPTAL</Button>
+            <Button variant="primary" onClick={saveBranch} disabled={branchSaving}>
+              {branchSaving ? <span className="spinner-border spinner-border-sm me-2" /> : null}
+              {branchEditId ? 'GÜNCELLE' : 'EKLE'}
+            </Button>
+          </Modal.Footer>
+        </Modal>
 
         <Modal show={showModal} onHide={() => setShowModal(false)} centered>
           <Modal.Header closeButton>

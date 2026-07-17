@@ -5,6 +5,10 @@ public class PersonnelDto
     public string? EnglishTitle { get; set; }
     public int? SignatureLocationId { get; set; }
     public string? SignatureLocationName { get; set; }
+    public int? BranchId { get; set; }
+    public string? BranchName { get; set; }
+    public string? BranchAddress { get; set; }
+    public string? BranchPhone { get; set; }
     public int Id { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
@@ -44,6 +48,7 @@ public class CreatePersonnelDto
     public string LastName { get; set; } = string.Empty;
     public string? EnglishTitle { get; set; }
     public int? SignatureLocationId { get; set; }
+    public int? BranchId { get; set; }
     public int DepartmentId { get; set; }
     public int CompanyId { get; set; }
     public string? Title { get; set; }
@@ -59,6 +64,7 @@ public class UpdatePersonnelDto
     public string LastName { get; set; } = string.Empty;
     public string? EnglishTitle { get; set; }
     public int? SignatureLocationId { get; set; }
+    public int? BranchId { get; set; }
     public int DepartmentId { get; set; }
     public int CompanyId { get; set; }
     public string? Title { get; set; }

@@ -15,4 +15,8 @@ public interface IPersonnelService
     Task<CompanyDto?> GetCompanyByIdAsync(int id);
     Task<CompanyDto> CreateCompanyAsync(CreateCompanyDto dto);
     Task<CompanyDto?> UpdateCompanyAsync(int id, UpdateCompanyDto dto);
+    Task<List<BranchDto>> GetBranchesAsync(int? companyId);
+    Task<BranchDto> CreateBranchAsync(SaveBranchDto dto);
+    Task<BranchDto?> UpdateBranchAsync(int id, SaveBranchDto dto);
+    Task<bool> DeleteBranchAsync(int id);
 }

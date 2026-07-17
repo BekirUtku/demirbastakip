@@ -29,6 +29,8 @@ public class AppDbContext : DbContext
     public DbSet<SignatureLocation> SignatureLocations =>
         Set<SignatureLocation>();
 
+    public DbSet<Branch> Branches => Set<Branch>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -114,6 +116,32 @@ public class AppDbContext : DbContext
                 x.IsActive
             });
         });
+
+        modelBuilder.Entity<Branch>(entity =>
+        {
+            entity.Property(b => b.Name)
+                  .HasMaxLength(200)
+                  .IsRequired();
+
+            entity.Property(b => b.Address)
+                  .HasMaxLength(500);
+
+            entity.Property(b => b.Phone)
+                  .HasMaxLength(50);
+
+            entity.HasOne(b => b.Company)
+                  .WithMany(c => c.Branches)
+                  .HasForeignKey(b => b.CompanyId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(b => b.CompanyId);
+        });
+
+        modelBuilder.Entity<Personnel>()
+                    .HasOne(p => p.Branch)
+                    .WithMany(b => b.Personnel)
+                    .HasForeignKey(p => p.BranchId)
+                    .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Asset>(entity =>
         {

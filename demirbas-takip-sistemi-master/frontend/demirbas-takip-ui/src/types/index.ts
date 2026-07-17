@@ -113,6 +113,17 @@ export interface Company {
   isActive: boolean;
 }
 
+export interface Branch {
+  id: number;
+  companyId: number;
+  companyName: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  isActive: boolean;
+  personnelCount: number;
+}
+
 export interface PersonnelAssignment {
   assignmentId: number;
   assetBarcode: string;
@@ -143,6 +154,10 @@ export interface Personnel {
   dismissalDate?: string;
   createdAt: string;
   createdByUserName: string;
+  branchId?: number;
+  branchName?: string;
+  branchAddress?: string;
+  branchPhone?: string;
   activeAssignments: PersonnelAssignment[];
 }
 

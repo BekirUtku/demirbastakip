@@ -531,6 +531,8 @@ export default function EmailSignatures() {
     const company = detectCompany(p.companyName);
     const loc = locations.find((l) => l.id === p.signatureLocationId);
     const addr = companyAddressLines(company);
+    // Öncelik: personelin şubesi -> firma adresi -> imza lokasyonu
+    const branchAddress = p.branchAddress ? String(p.branchAddress) : '';
     return {
       company,
       greeting: GREETING_DEFAULT,
@@ -538,11 +540,14 @@ export default function EmailSignatures() {
       title: p.title ?? '',
       englishTitle: p.englishTitle ?? '',
       companyName: PRESETS[company].companyDisplayName,
-      city: loc?.displayName ?? loc?.name ?? '',
-      addressLine1: addr?.addressLine1 ?? loc?.addressLine1 ?? '',
-      addressLine2: addr?.addressLine2 ?? loc?.addressLine2 ?? '',
+      city: p.branchName ?? loc?.displayName ?? loc?.name ?? '',
+      addressLine1: branchAddress || addr?.addressLine1 || loc?.addressLine1 || '',
+      addressLine2: branchAddress ? '' : (addr?.addressLine2 ?? loc?.addressLine2 ?? ''),
       phone: formatTrPhone(
-        (company === 'ogas' ? loc?.ogasPhone : loc?.lokumPhone) ?? p.phone ?? '',
+        p.branchPhone ||
+          (company === 'ogas' ? loc?.ogasPhone : loc?.lokumPhone) ||
+          p.phone ||
+          '',
       ),
       mobile: '',
       email: p.email ?? '',

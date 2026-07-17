@@ -33,6 +33,7 @@ public class PersonnelService : IPersonnelService
 
             // İmza lokasyonu bilgilerini getirir.
             .Include(p => p.SignatureLocation)
+            .Include(p => p.Branch)
 
             .Include(p => p.Assignments)
                 .ThenInclude(a => a.Asset)
@@ -92,6 +93,7 @@ public class PersonnelService : IPersonnelService
 
             // İmza lokasyonu bilgilerini getirir.
             .Include(p => p.SignatureLocation)
+            .Include(p => p.Branch)
 
             .Include(p => p.Assignments)
                 .ThenInclude(a => a.Asset)
@@ -133,6 +135,7 @@ public class PersonnelService : IPersonnelService
             EnglishTitle = dto.EnglishTitle,
             SignatureLocationId =
                 dto.SignatureLocationId,
+            BranchId = dto.BranchId,
 
             BirthDate = dto.BirthDate,
             Email = dto.Email,
@@ -187,6 +190,7 @@ public class PersonnelService : IPersonnelService
         personnel.EnglishTitle = dto.EnglishTitle;
         personnel.SignatureLocationId =
             dto.SignatureLocationId;
+        personnel.BranchId = dto.BranchId;
 
         personnel.BirthDate = dto.BirthDate;
         personnel.Email = dto.Email;
@@ -373,6 +377,79 @@ public class PersonnelService : IPersonnelService
         };
     }
 
+    public async Task<List<BranchDto>> GetBranchesAsync(int? companyId)
+    {
+        var query = _context.Branches
+            .Include(b => b.Company)
+            .AsQueryable();
+
+        if (companyId.HasValue)
+            query = query.Where(b => b.CompanyId == companyId.Value);
+
+        return await query
+            .OrderBy(b => b.Company.Name)
+            .ThenBy(b => b.Name)
+            .Select(b => new BranchDto
+            {
+                Id = b.Id,
+                CompanyId = b.CompanyId,
+                CompanyName = b.Company.Name,
+                Name = b.Name,
+                Address = b.Address,
+                Phone = b.Phone,
+                IsActive = b.IsActive,
+                PersonnelCount = b.Personnel.Count(p => p.IsActive)
+            })
+            .ToListAsync();
+    }
+
+    public async Task<BranchDto> CreateBranchAsync(SaveBranchDto dto)
+    {
+        var branch = new Branch
+        {
+            CompanyId = dto.CompanyId,
+            Name = dto.Name.Trim(),
+            Address = dto.Address?.Trim(),
+            Phone = dto.Phone?.Trim(),
+            IsActive = true
+        };
+
+        _context.Branches.Add(branch);
+        await _context.SaveChangesAsync();
+
+        return (await GetBranchesAsync(null))
+            .First(b => b.Id == branch.Id);
+    }
+
+    public async Task<BranchDto?> UpdateBranchAsync(int id, SaveBranchDto dto)
+    {
+        var branch = await _context.Branches.FindAsync(id);
+        if (branch == null)
+            return null;
+
+        branch.CompanyId = dto.CompanyId;
+        branch.Name = dto.Name.Trim();
+        branch.Address = dto.Address?.Trim();
+        branch.Phone = dto.Phone?.Trim();
+        branch.IsActive = dto.IsActive;
+
+        await _context.SaveChangesAsync();
+
+        return (await GetBranchesAsync(null))
+            .FirstOrDefault(b => b.Id == id);
+    }
+
+    public async Task<bool> DeleteBranchAsync(int id)
+    {
+        var branch = await _context.Branches.FindAsync(id);
+        if (branch == null)
+            return false;
+
+        _context.Branches.Remove(branch);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     private static PersonnelDto MapToDto(
         Personnel personnel)
     {
@@ -397,6 +474,10 @@ public class PersonnelService : IPersonnelService
                 personnel.SignatureLocationId,
             SignatureLocationName =
                 personnel.SignatureLocation?.Name,
+            BranchId = personnel.BranchId,
+            BranchName = personnel.Branch?.Name,
+            BranchAddress = personnel.Branch?.Address,
+            BranchPhone = personnel.Branch?.Phone,
 
             BirthDate = personnel.BirthDate,
             Email = personnel.Email,
