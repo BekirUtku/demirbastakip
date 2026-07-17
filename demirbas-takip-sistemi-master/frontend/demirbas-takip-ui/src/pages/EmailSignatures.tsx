@@ -125,7 +125,7 @@ function buildSignatureHtml(f: SigFields): string {
     )
     .join('');
 
-  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;max-width:920px;">
+  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
   <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:'Times New Roman', Times, serif;">
@@ -291,7 +291,7 @@ export default function EmailSignatures() {
     try {
       const inner = rawMode ? rawHtml : generatedHtml;
       const embedded = await embedImages(inner);
-      const doc = `<html>\n<head>\n<meta charset="utf-8">\n<title>Imza</title>\n</head>\n<body>\n${embedded}\n</body>\n</html>`;
+      const doc = `<html>\n<head>\n<meta charset="utf-8">\n<title>Imza</title>\n</head>\n<body style="margin:0;padding:0;">\n${embedded}\n</body>\n</html>`;
       const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
