@@ -244,6 +244,8 @@ async function renderPersonnelPng(
   const divGap = 16 * scale;
   const iconSize = Math.round(F * 1.25);
   const iconGap = Math.round(6 * scale);
+  const gapH = Math.round(4 * scale);
+  const maxCol = 250 * scale; // her sütun için maksimum metin genişliği (uzunsa alta iner)
   const fontReg = `${F}px "Times New Roman", Times, serif`;
   const fontBold = `bold ${F}px "Times New Roman", Times, serif`;
 
@@ -253,59 +255,99 @@ async function renderPersonnelPng(
     loadIcon('/logos/icon_mobile.png'),
   ]);
 
-  type L = {
-    t?: string;
-    b?: boolean;
-    gap?: boolean;
-    icon?: HTMLImageElement | null;
-    indent?: boolean;
-  };
-
-  const left: L[] = [{ t: f.fullName, b: true }];
-  if (f.title) left.push({ t: f.title });
-  if (f.englishTitle) left.push({ t: f.englishTitle });
-  left.push({ gap: true });
-  (f.companyName || '').split('\n').forEach((ln) => {
-    if (ln) left.push({ t: ln, b: true });
-  });
-
-  const right: L[] = [];
-  if (f.city) right.push({ t: f.city, b: true });
-  if (f.addressLine1)
-    right.push(icLoc ? { t: f.addressLine1, icon: icLoc } : { t: `Adres: ${f.addressLine1}` });
-  if (f.addressLine2)
-    right.push(icLoc ? { t: f.addressLine2, indent: true } : { t: f.addressLine2 });
-  if (f.phone)
-    right.push(icPhone ? { t: f.phone, icon: icPhone } : { t: `Sabit: ${f.phone}` });
-  if (f.mobile)
-    right.push(icMob ? { t: f.mobile, icon: icMob } : { t: `Telefon: ${f.mobile}` });
-  if (f.website) right.push({ t: f.website });
-
   const cv = document.createElement('canvas');
   const mctx = cv.getContext('2d')!;
-  const textW = (t: string, b?: boolean) => {
-    mctx.font = b ? fontBold : fontReg;
+  const measure = (t: string, font: string) => {
+    mctx.font = font;
     return mctx.measureText(t).width;
   };
-  const lineW = (x: L) => {
-    if (!x.t) return 0;
-    const base = textW(x.t, x.b);
-    return x.icon || x.indent ? iconSize + iconGap + base : base;
+  const wrap = (t: string, font: string, maxW: number): string[] => {
+    mctx.font = font;
+    const words = String(t).split(/\s+/).filter(Boolean);
+    const out: string[] = [];
+    let cur = '';
+    for (const w of words) {
+      const test = cur ? `${cur} ${w}` : w;
+      if (!cur || mctx.measureText(test).width <= maxW) cur = test;
+      else {
+        out.push(cur);
+        cur = w;
+      }
+    }
+    if (cur) out.push(cur);
+    return out.length ? out : [''];
   };
-  const leftW = Math.max(0, ...left.map(lineW));
-  const rightW = Math.max(0, ...right.map(lineW));
 
+  type RL = {
+    t: string;
+    font: string;
+    offset: number;
+    icon?: HTMLImageElement | null;
+    gap?: boolean;
+  };
+
+  // SOL sütun
+  const leftSrc: { t?: string; b?: boolean; gap?: boolean }[] = [
+    { t: f.fullName, b: true },
+  ];
+  if (f.title) leftSrc.push({ t: f.title });
+  if (f.englishTitle) leftSrc.push({ t: f.englishTitle });
+  leftSrc.push({ gap: true });
+  (f.companyName || '').split('\n').forEach((ln) => {
+    if (ln) leftSrc.push({ t: ln, b: true });
+  });
+  const leftRender: RL[] = [];
+  for (const it of leftSrc) {
+    if (it.gap) {
+      leftRender.push({ t: '', font: fontReg, offset: 0, gap: true });
+      continue;
+    }
+    const font = it.b ? fontBold : fontReg;
+    wrap(it.t as string, font, maxCol).forEach((sub) =>
+      leftRender.push({ t: sub, font, offset: 0 }),
+    );
+  }
+
+  // SAĞ sütun (ikonlu; uzun satırlar kaydırılır)
+  const rightSrc: {
+    t: string;
+    b?: boolean;
+    icon?: HTMLImageElement | null;
+    indent?: boolean;
+  }[] = [];
+  if (f.city) rightSrc.push({ t: f.city, b: true });
+  if (f.addressLine1)
+    rightSrc.push(icLoc ? { t: f.addressLine1, icon: icLoc } : { t: `Adres: ${f.addressLine1}` });
+  if (f.addressLine2)
+    rightSrc.push(icLoc ? { t: f.addressLine2, indent: true } : { t: f.addressLine2 });
+  if (f.phone)
+    rightSrc.push(icPhone ? { t: f.phone, icon: icPhone } : { t: `Sabit: ${f.phone}` });
+  if (f.mobile)
+    rightSrc.push(icMob ? { t: f.mobile, icon: icMob } : { t: `Telefon: ${f.mobile}` });
+  if (f.website) rightSrc.push({ t: f.website });
+  const rightRender: RL[] = [];
+  for (const it of rightSrc) {
+    const font = it.b ? fontBold : fontReg;
+    const offset = it.icon || it.indent ? iconSize + iconGap : 0;
+    wrap(it.t, font, maxCol - offset).forEach((sub, i) =>
+      rightRender.push({ t: sub, font, offset, icon: i === 0 ? it.icon : undefined }),
+    );
+  }
+
+  const lineW = (r: RL) => (r.gap ? 0 : r.offset + measure(r.t, r.font));
+  const leftW = Math.max(0, ...leftRender.map(lineW));
+  const rightW = Math.max(0, ...rightRender.map(lineW));
   const divX = Math.round(pad + leftW + divGap);
   const rightX = divX + divGap;
   const W = Math.ceil(rightX + rightW + pad);
-  const colH = (arr: L[]) => {
+  const colH = (arr: RL[]) => {
     let y = pad;
-    arr.forEach((x) => {
-      y += x.gap ? Math.round(4 * scale) : lh;
+    arr.forEach((r) => {
+      y += r.gap ? gapH : lh;
     });
     return y;
   };
-  const H = Math.ceil(Math.max(colH(left), colH(right)) + pad);
+  const H = Math.ceil(Math.max(colH(leftRender), colH(rightRender)) + pad);
 
   cv.width = W;
   cv.height = H;
@@ -315,18 +357,18 @@ async function renderPersonnelPng(
   c.textBaseline = 'top';
 
   let y = pad;
-  left.forEach((x) => {
-    if (x.gap) {
-      y += Math.round(4 * scale);
-      return;
+  for (const r of leftRender) {
+    if (r.gap) {
+      y += gapH;
+      continue;
     }
     c.fillStyle = '#000000';
-    c.font = x.b ? fontBold : fontReg;
-    c.fillText(x.t as string, pad, y);
+    c.font = r.font;
+    c.fillText(r.t, pad, y);
     y += lh;
-  });
+  }
 
-  const divBottom = Math.max(colH(left), colH(right)) - lh + F;
+  const divBottom = Math.max(colH(leftRender), colH(rightRender)) - lh + F;
   c.strokeStyle = '#cccccc';
   c.lineWidth = Math.max(1, Math.floor(scale / 2));
   c.beginPath();
@@ -335,19 +377,15 @@ async function renderPersonnelPng(
   c.stroke();
 
   y = pad;
-  right.forEach((x) => {
-    let tx = rightX;
-    if (x.icon) {
-      c.drawImage(x.icon, rightX, y + Math.round((F - iconSize) / 2), iconSize, iconSize);
-      tx = rightX + iconSize + iconGap;
-    } else if (x.indent) {
-      tx = rightX + iconSize + iconGap;
+  for (const r of rightRender) {
+    if (r.icon) {
+      c.drawImage(r.icon, rightX, y + Math.round((F - iconSize) / 2), iconSize, iconSize);
     }
     c.fillStyle = '#000000';
-    c.font = x.b ? fontBold : fontReg;
-    c.fillText(x.t as string, tx, y);
+    c.font = r.font;
+    c.fillText(r.t, rightX + r.offset, y);
     y += lh;
-  });
+  }
 
   return { url: cv.toDataURL('image/png'), width: Math.round(W / scale) };
 }
