@@ -125,17 +125,6 @@ export default function EmailSignatures() {
     setRawMode(false);
   };
 
-  const onChangeCompany = (company: CompanyKey) => {
-    const addr = companyAddressLines(company);
-    setFields((prev) => ({
-      ...prev,
-      company,
-      website: PRESETS[company].website,
-      companyName: PRESETS[company].companyDisplayName,
-      ...(addr ?? {}),
-    }));
-  };
-
   // Kişi/alanlar değişince bilgi bloğunu otomatik PNG'ye çevir
   useEffect(() => {
     let cancelled = false;
@@ -325,24 +314,6 @@ export default function EmailSignatures() {
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
-                FİRMA ŞABLONU
-              </label>
-              <div className="btn-group w-100">
-                {(['lokum', 'ogas'] as CompanyKey[]).map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`btn btn-sm ${fields.company === c ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => onChangeCompany(c)}
-                  >
-                    {PRESETS[c].label}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="mb-3">
