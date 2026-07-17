@@ -142,7 +142,6 @@ function buildSignatureHtml(
         ${row('Adres:', f.addressLine1)}
         ${row('', f.addressLine2)}
         ${row('Sabit:', f.phone)}
-        ${row('E-posta:', f.email)}
         ${f.website ? `<div style="margin-top:2px;"><a href="${esc(websiteHref)}" style="color:#000000;text-decoration:none;">${esc(f.website)}</a></div>` : ''}
       </td>`;
 
@@ -262,7 +261,6 @@ async function renderPersonnelPng(
     right.push(icPhone ? { t: f.phone, icon: icPhone } : { t: `Sabit: ${f.phone}` });
   if (f.mobile)
     right.push(icMob ? { t: f.mobile, icon: icMob } : { t: `Telefon: ${f.mobile}` });
-  if (f.email) right.push({ t: `E-posta: ${f.email}` });
   if (f.website) right.push({ t: f.website });
 
   const cv = document.createElement('canvas');
@@ -574,7 +572,6 @@ export default function EmailSignatures() {
                 {field('Adres Satır 2', 'addressLine2', { textarea: true, col: 'col-12' })}
                 {field('Sabit Telefon', 'phone')}
                 {field('Cep Telefonu', 'mobile')}
-                {field('E-posta', 'email')}
                 {field('Web Sitesi', 'website')}
               </div>
             )}
