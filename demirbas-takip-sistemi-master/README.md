@@ -9,7 +9,7 @@ Kurumsal demirbaş, zimmet ve personel yönetim sistemi. Personel doğum günü 
 | Katman | Teknoloji |
 |--------|-----------|
 | Backend | ASP.NET Core 10 Web API (C#) |
-| ORM | Entity Framework Core 8 (Code-First) |
+| ORM | Entity Framework Core 10 (Code-First) |
 | Veritabanı | Microsoft SQL Server (LocalDB veya Express) |
 | Kimlik Doğrulama | JWT Bearer Token |
 | Frontend | React 18 + Vite + TypeScript + Bootstrap 5 |

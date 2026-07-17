@@ -48,26 +48,11 @@ export default function App() {
               <AppLayout><ErrorBoundary pageName="assets"><Assets /></ErrorBoundary></AppLayout>
             </ProtectedRoute>
           } />
-          <Route
-  path="/email-signatures"
-  element={
-    <ProtectedRoute>
-      <EmailSignatures />
-    </ProtectedRoute>
-  }
-/>
-          <Route
-  path="/email-signatures"
-  element={
-    <ProtectedRoute>
-      <AppLayout>
-        <ErrorBoundary pageName="email-signatures">
-          <EmailSignatures />
-        </ErrorBoundary>
-      </AppLayout>
-    </ProtectedRoute>
-  }
-/>
+          <Route path="/email-signatures" element={
+            <ProtectedRoute>
+              <AppLayout><ErrorBoundary pageName="email-signatures"><EmailSignatures /></ErrorBoundary></AppLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/personnel" element={
             <ProtectedRoute>
               <AppLayout><ErrorBoundary pageName="personnel"><Personnel /></ErrorBoundary></AppLayout>

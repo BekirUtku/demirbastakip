@@ -31,7 +31,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "DemirbasTakipDefaultSecretKey_MinLength32Chars!";
+var secretKey = jwtSettings["SecretKey"];
+if (string.IsNullOrWhiteSpace(secretKey))
+    secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+
+if (string.IsNullOrWhiteSpace(secretKey) || Encoding.UTF8.GetByteCount(secretKey) < 32)
+    throw new InvalidOperationException(
+        "JWT SecretKey yapilandirilmamis veya 32 karakterden kisa. En az 32 karakterlik " +
+        "bir anahtari ortam degiskeni (JWT_SECRET_KEY), user-secrets veya " +
+        "appsettings.Development.json uzerinden saglayin.");
+
 var key = Encoding.UTF8.GetBytes(secretKey);
 
 builder.Services.AddAuthentication(opt =>
