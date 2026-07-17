@@ -430,6 +430,7 @@ export default function EmailSignatures() {
   const [rawMode, setRawMode] = useState(false);
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [personImg, setPersonImg] = useState<{ url: string; width: number } | null>(null);
 
   useEffect(() => {
@@ -520,6 +521,25 @@ export default function EmailSignatures() {
     setRawMode(true);
   };
   const backToForm = () => setRawMode(false);
+
+  const handleCopy = async () => {
+    try {
+      const inner = rawMode ? rawHtml : generatedHtml;
+      const embedded = await embedImages(inner);
+      const plain = embedded.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([embedded], { type: 'text/html' }),
+          'text/plain': new Blob([plain], { type: 'text/plain' }),
+        }),
+      ]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error('Kopyalama hatası:', e);
+      alert('Panoya kopyalanamadı. Tarayıcı izni gerekebilir veya HTTPS gerekebilir.');
+    }
+  };
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -679,13 +699,21 @@ export default function EmailSignatures() {
               </div>
             )}
 
-            <button
-              className="btn btn-success mt-3"
-              onClick={handleDownload}
-              disabled={downloading}
-            >
-              {downloading ? 'İndiriliyor…' : '⬇️ .htm olarak indir'}
-            </button>
+            <div className="d-flex gap-2 mt-3">
+              <button
+                className={`btn ${copied ? 'btn-success' : 'btn-outline-primary'}`}
+                onClick={handleCopy}
+              >
+                {copied ? '✓ Kopyalandı' : '📋 Panoya kopyala'}
+              </button>
+              <button
+                className="btn btn-success"
+                onClick={handleDownload}
+                disabled={downloading}
+              >
+                {downloading ? 'İndiriliyor…' : '⬇️ .htm olarak indir'}
+              </button>
+            </div>
           </div>
         </div>
 
