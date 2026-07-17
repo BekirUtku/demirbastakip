@@ -108,7 +108,10 @@ function boldNames(text: string, names: string[]): string {
 }
 
 /** Form alanlarından imza HTML'i üretir (görseller URL olarak). */
-function buildSignatureHtml(f: SigFields): string {
+function buildSignatureHtml(
+  f: SigFields,
+  personImg?: { url: string; width: number },
+): string {
   const p = PRESETS[f.company];
   const websiteHref =
     f.website.startsWith('http') ? f.website : `https://${f.website}`;
@@ -125,15 +128,9 @@ function buildSignatureHtml(f: SigFields): string {
     )
     .join('');
 
-  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
-  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
-
-  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;font-family:'Times New Roman', Times, serif;">
-    <tr>
-      <td style="vertical-align:${p.logoValign};padding-right:16px;">
-        <img src="${p.logo}" width="${p.logoWidth}" alt="${esc(p.label)}" style="display:block;border:none;" />
-      </td>
-      <td style="vertical-align:top;padding:2px 16px 2px 0;word-break:break-word;overflow-wrap:break-word;">
+  const infoCells = personImg
+    ? `<td style="vertical-align:top;"><img src="${personImg.url}" width="${personImg.width}" alt="Personel Bilgileri" style="display:block;border:none;" /></td>`
+    : `<td style="vertical-align:top;padding:2px 16px 2px 0;word-break:break-word;overflow-wrap:break-word;">
         <div style="font-weight:bold;">${esc(f.fullName)}</div>
         ${f.title ? `<div>${esc(f.title)}</div>` : ''}
         ${f.englishTitle ? `<div>${esc(f.englishTitle)}</div>` : ''}
@@ -146,7 +143,17 @@ function buildSignatureHtml(f: SigFields): string {
         ${row('Sabit:', f.phone)}
         ${row('E-posta:', f.email)}
         ${f.website ? `<div style="margin-top:2px;"><a href="${esc(websiteHref)}" style="color:#000000;text-decoration:none;">${esc(f.website)}</a></div>` : ''}
+      </td>`;
+
+  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
+  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
+
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;font-family:'Times New Roman', Times, serif;">
+    <tr>
+      <td style="vertical-align:${p.logoValign};padding-right:16px;">
+        <img src="${p.logo}" width="${p.logoWidth}" alt="${esc(p.label)}" style="display:block;border:none;" />
       </td>
+      ${infoCells}
     </tr>
   </table>
 
@@ -198,6 +205,93 @@ async function embedImages(html: string): Promise<string> {
 /*  Bileşen                                                          */
 /* ------------------------------------------------------------------ */
 
+/** Kişi bilgisi bölümünü tarayıcıda Canvas ile PNG'ye çizer (base64 döner). */
+function renderPersonnelPng(f: SigFields): { url: string; width: number } {
+  const scale = 3;
+  const F = 12 * scale; // 9pt
+  const lh = Math.round(F * 1.38);
+  const pad = 8 * scale;
+  const divGap = 16 * scale;
+  const fontReg = `${F}px "Times New Roman", Times, serif`;
+  const fontBold = `bold ${F}px "Times New Roman", Times, serif`;
+
+  type L = { t?: string; b?: boolean; gap?: boolean };
+  const left: L[] = [{ t: f.fullName, b: true }];
+  if (f.title) left.push({ t: f.title });
+  if (f.englishTitle) left.push({ t: f.englishTitle });
+  left.push({ gap: true });
+  (f.companyName || '').split('\n').forEach((ln) => {
+    if (ln) left.push({ t: ln, b: true });
+  });
+
+  const right: L[] = [];
+  if (f.city) right.push({ t: f.city, b: true });
+  if (f.addressLine1) right.push({ t: `Adres: ${f.addressLine1}` });
+  if (f.addressLine2) right.push({ t: f.addressLine2 });
+  if (f.phone) right.push({ t: `Sabit: ${f.phone}` });
+  if (f.email) right.push({ t: `E-posta: ${f.email}` });
+  if (f.website) right.push({ t: f.website });
+
+  const cv = document.createElement('canvas');
+  const mctx = cv.getContext('2d')!;
+  const measure = (t: string, b?: boolean) => {
+    mctx.font = b ? fontBold : fontReg;
+    return mctx.measureText(t).width;
+  };
+  const widths = (arr: L[]) =>
+    arr.filter((x) => x.t).map((x) => measure(x.t as string, x.b));
+  const leftW = Math.max(0, ...widths(left));
+  const rightW = Math.max(0, ...widths(right));
+
+  const divX = Math.round(pad + leftW + divGap);
+  const rightX = divX + divGap;
+  const W = Math.ceil(rightX + rightW + pad);
+  const colH = (arr: L[]) => {
+    let y = pad;
+    arr.forEach((x) => {
+      y += x.gap ? Math.round(4 * scale) : lh;
+    });
+    return y;
+  };
+  const H = Math.ceil(Math.max(colH(left), colH(right)) + pad);
+
+  cv.width = W;
+  cv.height = H;
+  const c = cv.getContext('2d')!;
+  c.fillStyle = '#ffffff';
+  c.fillRect(0, 0, W, H);
+  c.textBaseline = 'top';
+  c.fillStyle = '#000000';
+
+  let y = pad;
+  left.forEach((x) => {
+    if (x.gap) {
+      y += Math.round(4 * scale);
+      return;
+    }
+    c.font = x.b ? fontBold : fontReg;
+    c.fillText(x.t as string, pad, y);
+    y += lh;
+  });
+
+  const divBottom = Math.max(colH(left), colH(right)) - lh + F;
+  c.strokeStyle = '#cccccc';
+  c.lineWidth = Math.max(1, Math.floor(scale / 2));
+  c.beginPath();
+  c.moveTo(divX + 0.5, pad);
+  c.lineTo(divX + 0.5, divBottom);
+  c.stroke();
+
+  y = pad;
+  right.forEach((x) => {
+    c.font = x.b ? fontBold : fontReg;
+    c.fillText(x.t as string, rightX, y);
+    y += lh;
+  });
+
+  return { url: cv.toDataURL('image/png'), width: Math.round(W / scale) };
+}
+
 export default function EmailSignatures() {
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -221,6 +315,7 @@ export default function EmailSignatures() {
   const [rawMode, setRawMode] = useState(false);
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [personImg, setPersonImg] = useState<{ url: string; width: number } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -277,7 +372,19 @@ export default function EmailSignatures() {
     }));
   };
 
-  const generatedHtml = useMemo(() => buildSignatureHtml(fields), [fields]);
+  // Kişi/alanlar değişince bilgi bloğunu otomatik PNG'ye çevir
+  useEffect(() => {
+    try {
+      setPersonImg(renderPersonnelPng(fields));
+    } catch {
+      setPersonImg(null);
+    }
+  }, [fields]);
+
+  const generatedHtml = useMemo(
+    () => buildSignatureHtml(fields, personImg ?? undefined),
+    [fields, personImg],
+  );
   const previewHtml = rawMode ? rawHtml : generatedHtml;
 
   const enterRawMode = () => {
