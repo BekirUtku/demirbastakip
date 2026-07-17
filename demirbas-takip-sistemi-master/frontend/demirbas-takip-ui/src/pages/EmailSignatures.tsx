@@ -408,6 +408,7 @@ async function renderCompactPng(
 export default function EmailSignatures() {
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<number | ''>('');
 
   const [fields, setFields] = useState<SigFields>({
@@ -436,12 +437,14 @@ export default function EmailSignatures() {
   useEffect(() => {
     (async () => {
       try {
-        const [pRes, lRes] = await Promise.all([
+        const [pRes, lRes, cRes] = await Promise.all([
           api.get('/Personnel'),
           api.get('/signature-locations').catch(() => ({ data: [] })),
+          api.get('/Companies').catch(() => ({ data: [] })),
         ]);
         setPersonnel(pRes.data || []);
         setLocations(lRes.data || []);
+        setCompanies(cRes.data || []);
       } catch (e) {
         console.error('Veri yükleme hatası:', e);
       }
@@ -453,6 +456,24 @@ export default function EmailSignatures() {
 
   const detectCompany = (companyName: string): CompanyKey =>
     /ogaş|ogas/i.test(companyName || '') ? 'ogas' : 'lokum';
+
+  // Seçilen firma şablonuna karşılık gelen Firma kaydını bul
+  const matchCompany = (key: CompanyKey) =>
+    companies.find((c) => {
+      const n = `${c.name ?? ''} ${c.companyName ?? ''}`.toLowerCase();
+      return key === 'ogas' ? /oga[sş]/i.test(n) : /lokum/i.test(n);
+    });
+
+  // Firma kaydının adresini adres satırlarına böl
+  const companyAddressLines = (key: CompanyKey) => {
+    const c = matchCompany(key);
+    if (!c?.address) return null;
+    const parts = String(c.address)
+      .split(/\r?\n/)
+      .map((x: string) => x.trim())
+      .filter(Boolean);
+    return { addressLine1: parts[0] ?? '', addressLine2: parts.slice(1).join(', ') };
+  };
 
   const onSelectPersonnel = (idStr: string) => {
     const id = idStr ? Number(idStr) : '';
@@ -470,8 +491,8 @@ export default function EmailSignatures() {
       englishTitle: p.englishTitle ?? '',
       companyName: PRESETS[company].companyDisplayName,
       city: loc?.displayName ?? loc?.name ?? '',
-      addressLine1: loc?.addressLine1 ?? '',
-      addressLine2: loc?.addressLine2 ?? '',
+      addressLine1: companyAddressLines(company)?.addressLine1 ?? loc?.addressLine1 ?? '',
+      addressLine2: companyAddressLines(company)?.addressLine2 ?? loc?.addressLine2 ?? '',
       phone: (company === 'ogas' ? loc?.ogasPhone : loc?.lokumPhone) ?? p.phone ?? '',
       mobile: '',
       email: p.email ?? '',
@@ -481,11 +502,13 @@ export default function EmailSignatures() {
   };
 
   const onChangeCompany = (company: CompanyKey) => {
+    const addr = companyAddressLines(company);
     setFields((prev) => ({
       ...prev,
       company,
       website: PRESETS[company].website,
       companyName: PRESETS[company].companyDisplayName,
+      ...(addr ?? {}),
     }));
   };
 
