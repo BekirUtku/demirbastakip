@@ -128,18 +128,18 @@ function buildSignatureHtml(f: SigFields): string {
   return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
   <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
 
-  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:'Times New Roman', Times, serif;">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;width:700px;font-family:'Times New Roman', Times, serif;">
     <tr>
-      <td style="vertical-align:${p.logoValign};padding-right:16px;">
+      <td style="width:170px;vertical-align:${p.logoValign};padding-right:16px;">
         <img src="${p.logo}" width="${p.logoWidth}" alt="${esc(p.label)}" style="display:block;border:none;" />
       </td>
-      <td style="vertical-align:top;padding:2px 16px 2px 0;">
+      <td style="width:250px;vertical-align:top;padding:2px 16px 2px 0;word-break:break-word;overflow-wrap:break-word;">
         <div style="font-weight:bold;">${esc(f.fullName)}</div>
         ${f.title ? `<div>${esc(f.title)}</div>` : ''}
         ${f.englishTitle ? `<div>${esc(f.englishTitle)}</div>` : ''}
         ${f.companyName ? `<div style="font-weight:bold;margin-top:4px;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}
       </td>
-      <td style="vertical-align:top;border-left:1px solid #cccccc;padding:2px 0 2px 16px;">
+      <td style="width:280px;vertical-align:top;border-left:1px solid #cccccc;padding:2px 0 2px 16px;word-break:break-word;overflow-wrap:break-word;">
         ${f.city ? `<div style="font-weight:bold;margin-bottom:2px;">${esc(f.city)}</div>` : ''}
         ${row('Adres:', f.addressLine1)}
         ${row('', f.addressLine2)}
@@ -154,9 +154,9 @@ function buildSignatureHtml(f: SigFields): string {
     <tr>${bannerCells}<td style="vertical-align:middle;padding:0 0 0 4px;"><img src="${p.efatura}" width="130" alt="E-Fatura" style="display:block;border:none;" /></td></tr>
   </table>
 
-  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;table-layout:fixed;width:700px;">
     <tr>
-      <td style="border:1px solid #000000;padding:8px;font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;">
+      <td style="border:1px solid #000000;padding:8px;font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
         <b>YASAL UYARI</b><br />${discTr}<br /><br />
         <b>DISCLAIMER</b><br />${discEn}
       </td>
