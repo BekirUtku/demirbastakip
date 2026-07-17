@@ -118,6 +118,15 @@ export default function Companies() {
       setSuccess('ŞUBE SİLİNDİ.');
     } catch { setError('ŞUBE SİLİNEMEDİ.'); }
   };
+  const toggleBranchActive = async (b: Branch) => {
+    try {
+      await api.put(`/branches/${b.id}`, {
+        companyId: b.companyId, name: b.name, address: b.address ?? '', phone: b.phone ?? '', isActive: !b.isActive,
+      });
+      setBranches(prev => prev.map(x => x.id === b.id ? { ...x, isActive: !x.isActive } : x));
+      setSuccess(b.isActive ? 'ŞUBE PASİFE ALINDI.' : 'ŞUBE AKTİF EDİLDİ.');
+    } catch { setError('ŞUBE DURUMU GÜNCELLENEMEDİ.'); }
+  };
 
   if (loading) return <><Header title="Firmalar" /><Loader /></>;
 
@@ -236,12 +245,20 @@ export default function Companies() {
                     <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{b.personnelCount ?? 0}</span>
                   </td>
                   <td>
-                    <span className={`badge ${b.isActive ? 'badge-aktif' : 'badge-iade'}`} style={{ fontSize: 10 }}>
+                    <button
+                      className={`badge ${b.isActive ? 'badge-aktif' : 'badge-iade'}`}
+                      style={{ fontSize: 10, border: 'none', cursor: 'pointer' }}
+                      title={b.isActive ? 'PASİFE AL' : 'AKTİF ET'}
+                      onClick={() => toggleBranchActive(b)}>
                       {b.isActive ? 'AKTİF' : 'PASİF'}
-                    </span>
+                    </button>
                   </td>
                   <td>
                     <div className="d-flex gap-1">
+                      <button className="action-btn"
+                        style={{ background: b.isActive ? '#fef9c3' : '#dcfce7', color: b.isActive ? '#a16207' : 'var(--success)' }}
+                        title={b.isActive ? 'PASİFE AL' : 'AKTİF ET'} onClick={() => toggleBranchActive(b)}>
+                        {b.isActive ? '⛔' : '✅'}</button>
                       <button className="action-btn" style={{ background: '#eff6ff', color: 'var(--primary)' }}
                         title="DÜZENLE" onClick={() => openEditBranch(b)}>✏️</button>
                       <button className="action-btn" style={{ background: '#fee2e2', color: 'var(--danger)' }}
