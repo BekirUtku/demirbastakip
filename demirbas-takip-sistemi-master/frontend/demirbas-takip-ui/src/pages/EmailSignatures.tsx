@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
+import Header from '../components/layout/Header';
 
 /* ------------------------------------------------------------------ */
 /*  Firma ön ayarları (logo, kampanya görselleri, web sitesi, uyarı)  */
@@ -571,8 +572,12 @@ export default function EmailSignatures() {
   );
 
   return (
-    <div className="container-fluid mt-4">
-      <h2 className="mb-3">✍️ Mail İmza Düzenleyici</h2>
+    <>
+      <Header title="Mail İmzaları" subtitle="Mail İmza Oluşturma ve Düzenleme" />
+      <div className="main-content">
+        <div className="page-header">
+          <h5 className="page-title">✍️ MAIL İMZA DÜZENLEYİCİ</h5>
+        </div>
 
       <div className="row g-4">
         {/* ÜST: Düzenleme paneli */}
@@ -702,5 +707,6 @@ export default function EmailSignatures() {
         </div>
       </div>
     </div>
+    </>
   );
 }
