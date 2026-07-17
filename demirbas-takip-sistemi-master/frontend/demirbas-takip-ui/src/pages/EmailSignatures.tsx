@@ -115,7 +115,7 @@ function buildCompactHtml(f: SigFields): string {
   <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
   <div style="font-size:10pt;font-weight:bold;">${esc(f.fullName)}</div>
   ${f.title ? `<div>${esc(f.title)}</div>` : ''}
-  ${f.englishTitle ? `<div style="font-style:italic;">${esc(f.englishTitle)}</div>` : ''}
+  ${f.englishTitle ? `<div>${esc(f.englishTitle)}</div>` : ''}
   ${f.companyName ? `<div style="font-weight:bold;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}
 </div>`;
 }
