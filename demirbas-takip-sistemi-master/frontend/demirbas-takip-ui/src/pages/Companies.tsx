@@ -220,6 +220,7 @@ export default function Companies() {
               { key: 'address', label: 'ADRES', filterable: true },
               { key: 'phone', label: 'SABİT TELEFON', filterable: true },
               { key: 'personnelCount', label: 'AKTİF PERSONEL', filterable: false },
+              { key: 'status', label: 'DURUM', filterable: false },
               { key: 'actions', label: 'İŞLEM', filterable: false, width: '110px' },
             ]}
             data={branches as unknown as Record<string, unknown>[]}
@@ -233,6 +234,11 @@ export default function Companies() {
                   <td style={{ fontSize: 12 }}>{b.phone || '-'}</td>
                   <td style={{ fontSize: 12, textAlign: 'center' }}>
                     <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{b.personnelCount ?? 0}</span>
+                  </td>
+                  <td>
+                    <span className={`badge ${b.isActive ? 'badge-aktif' : 'badge-iade'}`} style={{ fontSize: 10 }}>
+                      {b.isActive ? 'AKTİF' : 'PASİF'}
+                    </span>
                   </td>
                   <td>
                     <div className="d-flex gap-1">
@@ -279,6 +285,16 @@ export default function Companies() {
                 onChange={e => setBranchForm(p => ({ ...p, phone: e.target.value }))}
                 placeholder="0272 000 00 00 (opsiyonel)" autoComplete="off" />
             </div>
+            {branchEditId && (
+              <div className="mb-3">
+                <div className="form-check">
+                  <input className="form-check-input" type="checkbox" id="branchActive"
+                    checked={branchForm.isActive}
+                    onChange={e => setBranchForm(p => ({ ...p, isActive: e.target.checked }))} />
+                  <label className="form-check-label" htmlFor="branchActive">AKTİF</label>
+                </div>
+              </div>
+            )}
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowBranch(false)}>İPTAL</Button>

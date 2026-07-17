@@ -7,12 +7,14 @@ import { useColumnPreferences } from '../hooks/useColumnPreferences';
 import api from '../services/api';
 import type { Personnel, Department, Company, Branch } from '../types';
 import type { ColumnDefinition } from '../types/columns';
+import { copyPersonnelSignature } from '../services/signature';
 
 const PERSONNEL_COLS: ColumnDefinition[] = [
   { key: 'fullName',          label: 'AD SOYAD',         defaultVisible: true,  defaultWidth: 180, defaultOrder: 0,   filterable: true, filterType: 'text',   minWidth: 80 },
   { key: 'title',             label: 'ÜNVAN',            defaultVisible: true,  defaultWidth: 130, defaultOrder: 1,   filterable: true, filterType: 'text' },
   { key: 'departmentName',    label: 'DEPARTMAN',        defaultVisible: true,  defaultWidth: 140, defaultOrder: 2,   filterable: true, filterType: 'select', renderType: 'badge' },
   { key: 'companyName',       label: 'FİRMA',            defaultVisible: true,  defaultWidth: 160, defaultOrder: 3,   filterable: true, filterType: 'select', renderType: 'badge' },
+  { key: 'branchName',        label: 'ŞUBE',             defaultVisible: true,  defaultWidth: 150, defaultOrder: 3.5, filterable: true, filterType: 'text' },
   { key: 'email',             label: 'E-POSTA',          defaultVisible: true,  defaultWidth: 200, defaultOrder: 4,   filterable: true, filterType: 'text' },
   { key: 'phone',             label: 'TELEFON',          defaultVisible: false, defaultWidth: 130, defaultOrder: 5,   filterable: true, filterType: 'text' },
   { key: 'birthDate',         label: 'DOĞUM TARİHİ',    defaultVisible: false, defaultWidth: 120, defaultOrder: 6,   renderType: 'date' },
@@ -30,6 +32,8 @@ export default function PersonnelPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [locations, setLocations] = useState<Record<string, unknown>[]>([]);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -56,13 +60,14 @@ export default function PersonnelPage() {
 
   const load = async () => {
     try {
-      const [pRes, dRes, cRes, bRes] = await Promise.all([
+      const [pRes, dRes, cRes, bRes, lRes] = await Promise.all([
         api.get<Personnel[]>('/personnel'),
         api.get<Department[]>('/personnel/departments'),
         api.get<Company[]>('/personnel/companies'),
         api.get<Branch[]>('/branches').catch(() => ({ data: [] as Branch[] })),
+        api.get<Record<string, unknown>[]>('/signature-locations').catch(() => ({ data: [] as Record<string, unknown>[] })),
       ]);
-      setPersonnel(pRes.data ?? []); setDepartments(dRes.data ?? []); setCompanies(cRes.data ?? []); setBranches(bRes.data ?? []);
+      setPersonnel(pRes.data ?? []); setDepartments(dRes.data ?? []); setCompanies(cRes.data ?? []); setBranches(bRes.data ?? []); setLocations(lRes.data ?? []);
     } catch { setError('VERİLER YÜKLENEMEDİ.'); }
     finally { setLoading(false); }
   };
@@ -112,6 +117,17 @@ export default function PersonnelPage() {
       await load();
     } catch { setError('İŞTEN AYRILIK KAYDEDİLEMEDİ.'); }
     finally { setDismissalSaving(false); }
+  };
+
+  const handleCopySig = async (p: Personnel) => {
+    try {
+      await copyPersonnelSignature(p, locations, companies, 'full');
+      setCopiedId(p.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (e) {
+      console.error('İmza kopyalama hatası:', e);
+      setError('İMZA PANOYA KOPYALANAMADI (tarayıcı izni gerekebilir).');
+    }
   };
 
   const addDept = async () => {
@@ -180,6 +196,9 @@ export default function PersonnelPage() {
             {isExpanded ? '🔼' : '👁'}
           </button>
           <button className="action-btn" style={{ background: '#f0fdf4', color: 'var(--success)' }} title="DÜZENLE" onClick={() => openEdit(p)}>✏️</button>
+          <button className="action-btn"
+            style={{ background: copiedId === p.id ? '#dcfce7' : '#f5f3ff', color: copiedId === p.id ? 'var(--success)' : '#7c3aed' }}
+            title="İMZAYI PANOYA KOPYALA" onClick={() => handleCopySig(p)}>{copiedId === p.id ? '✓' : '📋'}</button>
           {p.isActive && (
             <button className="action-btn" style={{ background: '#fee2e2', color: 'var(--danger)' }} title="İŞTEN AYRILIK KAYDET"
               onClick={() => setDismissalModal({ show: true, id: p.id, name: `${p.firstName} ${p.lastName}`, date: new Date().toISOString().substring(0, 10) })}>
@@ -194,6 +213,7 @@ export default function PersonnelPage() {
     }
     if (col.key === 'departmentName') return <span style={{ fontSize: 12 }}>{p.departmentName.toUpperCase()}</span>;
     if (col.key === 'companyName') return <span style={{ fontSize: 12 }}>{p.companyName.toUpperCase()}</span>;
+    if (col.key === 'branchName') return <span style={{ fontSize: 12 }}>{p.branchName ? p.branchName.toUpperCase() : '-'}</span>;
     if (col.key === 'fullName') return <span style={{ fontWeight: 600 }}>{`${p.firstName} ${p.lastName}`.toUpperCase()}</span>;
     if (col.renderType === 'date') {
       const v = (p as unknown as Record<string, unknown>)[col.key] as string | undefined;
