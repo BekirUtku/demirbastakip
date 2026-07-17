@@ -10,7 +10,7 @@ const menuItems = [
   { path: '/assignments', label: 'ZİMMETLER', icon: '📋' },
   { path: '/barcode-scanner', label: 'BARKOD OKUT', icon: '🔍' },
   { path: '/reports', label: 'RAPORLAR', icon: '📊' },
-  { path: '/email-signatures', label: 'E-POSTA İMZALARI', icon: '✍️' },
+  { path: '/email-signatures', label: 'MAIL İMZALARI', icon: '✍️' },
   { path: '/mail-settings', label: 'MAİL AYARLARI', icon: '✉️' },
 ];
 

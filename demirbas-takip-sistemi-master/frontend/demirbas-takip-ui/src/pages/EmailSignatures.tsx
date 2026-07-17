@@ -420,9 +420,9 @@ export default function EmailSignatures() {
   const field = (
     label: string,
     key: keyof SigFields,
-    opts: { textarea?: boolean } = {},
+    opts: { textarea?: boolean; col?: string } = {},
   ) => (
-    <div className="mb-2">
+    <div className={`${opts.col ?? 'col-md-6'} mb-2`}>
       <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
         {label}
       </label>
@@ -445,11 +445,11 @@ export default function EmailSignatures() {
 
   return (
     <div className="container-fluid mt-4">
-      <h2 className="mb-3">✍️ E-Posta İmza Düzenleyici</h2>
+      <h2 className="mb-3">✍️ Mail İmza Düzenleyici</h2>
 
       <div className="row g-4">
-        {/* SOL: Düzenleme paneli */}
-        <div className="col-lg-5">
+        {/* ÜST: Düzenleme paneli */}
+        <div className="col-12 mb-4">
           <div className="card p-3">
             <div className="mb-3">
               <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
@@ -511,19 +511,19 @@ export default function EmailSignatures() {
                 onChange={(e) => setRawHtml(e.target.value)}
               />
             ) : (
-              <>
-                {field('Selamlama', 'greeting')}
+              <div className="row g-2">
+                {field('Selamlama', 'greeting', { col: 'col-12' })}
                 {field('Ad Soyad', 'fullName')}
                 {field('Unvan', 'title')}
                 {field('İngilizce Unvan', 'englishTitle')}
-                {field('Firma Adı (metin)', 'companyName', { textarea: true })}
                 {field('Şehir / Lokasyon', 'city')}
-                {field('Adres Satır 1', 'addressLine1', { textarea: true })}
-                {field('Adres Satır 2', 'addressLine2', { textarea: true })}
+                {field('Firma Adı (metin)', 'companyName', { textarea: true, col: 'col-12' })}
+                {field('Adres Satır 1', 'addressLine1', { textarea: true, col: 'col-12' })}
+                {field('Adres Satır 2', 'addressLine2', { textarea: true, col: 'col-12' })}
                 {field('Sabit Telefon', 'phone')}
                 {field('E-posta', 'email')}
                 {field('Web Sitesi', 'website')}
-              </>
+              </div>
             )}
 
             <button
@@ -536,8 +536,8 @@ export default function EmailSignatures() {
           </div>
         </div>
 
-        {/* SAĞ: Canlı önizleme */}
-        <div className="col-lg-7">
+        {/* ALT: Canlı önizleme */}
+        <div className="col-12">
           <div className="card p-3">
             <h5 className="mb-3">Canlı Önizleme</h5>
             <div
