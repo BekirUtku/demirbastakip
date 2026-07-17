@@ -79,6 +79,7 @@ interface SigFields {
   addressLine1: string;
   addressLine2: string;
   phone: string;
+  mobile: string;
   email: string;
   website: string;
 }
@@ -205,17 +206,44 @@ async function embedImages(html: string): Promise<string> {
 /*  Bileşen                                                          */
 /* ------------------------------------------------------------------ */
 
+/** İkon görselini yükler (yüklenemezse null). */
+function loadIcon(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = src;
+  });
+}
+
 /** Kişi bilgisi bölümünü tarayıcıda Canvas ile PNG'ye çizer (base64 döner). */
-function renderPersonnelPng(f: SigFields): { url: string; width: number } {
+async function renderPersonnelPng(
+  f: SigFields,
+): Promise<{ url: string; width: number }> {
   const scale = 3;
   const F = 12 * scale; // 9pt
-  const lh = Math.round(F * 1.38);
+  const lh = Math.round(F * 1.42);
   const pad = 8 * scale;
   const divGap = 16 * scale;
+  const iconSize = Math.round(F * 1.25);
+  const iconGap = Math.round(6 * scale);
   const fontReg = `${F}px "Times New Roman", Times, serif`;
   const fontBold = `bold ${F}px "Times New Roman", Times, serif`;
 
-  type L = { t?: string; b?: boolean; gap?: boolean };
+  const [icLoc, icPhone, icMob] = await Promise.all([
+    loadIcon('/logos/icon_location.png'),
+    loadIcon('/logos/icon_phone.png'),
+    loadIcon('/logos/icon_mobile.png'),
+  ]);
+
+  type L = {
+    t?: string;
+    b?: boolean;
+    gap?: boolean;
+    icon?: HTMLImageElement | null;
+    indent?: boolean;
+  };
+
   const left: L[] = [{ t: f.fullName, b: true }];
   if (f.title) left.push({ t: f.title });
   if (f.englishTitle) left.push({ t: f.englishTitle });
@@ -226,22 +254,30 @@ function renderPersonnelPng(f: SigFields): { url: string; width: number } {
 
   const right: L[] = [];
   if (f.city) right.push({ t: f.city, b: true });
-  if (f.addressLine1) right.push({ t: `Adres: ${f.addressLine1}` });
-  if (f.addressLine2) right.push({ t: f.addressLine2 });
-  if (f.phone) right.push({ t: `Sabit: ${f.phone}` });
+  if (f.addressLine1)
+    right.push(icLoc ? { t: f.addressLine1, icon: icLoc } : { t: `Adres: ${f.addressLine1}` });
+  if (f.addressLine2)
+    right.push(icLoc ? { t: f.addressLine2, indent: true } : { t: f.addressLine2 });
+  if (f.phone)
+    right.push(icPhone ? { t: f.phone, icon: icPhone } : { t: `Sabit: ${f.phone}` });
+  if (f.mobile)
+    right.push(icMob ? { t: f.mobile, icon: icMob } : { t: `Telefon: ${f.mobile}` });
   if (f.email) right.push({ t: `E-posta: ${f.email}` });
   if (f.website) right.push({ t: f.website });
 
   const cv = document.createElement('canvas');
   const mctx = cv.getContext('2d')!;
-  const measure = (t: string, b?: boolean) => {
+  const textW = (t: string, b?: boolean) => {
     mctx.font = b ? fontBold : fontReg;
     return mctx.measureText(t).width;
   };
-  const widths = (arr: L[]) =>
-    arr.filter((x) => x.t).map((x) => measure(x.t as string, x.b));
-  const leftW = Math.max(0, ...widths(left));
-  const rightW = Math.max(0, ...widths(right));
+  const lineW = (x: L) => {
+    if (!x.t) return 0;
+    const base = textW(x.t, x.b);
+    return x.icon || x.indent ? iconSize + iconGap + base : base;
+  };
+  const leftW = Math.max(0, ...left.map(lineW));
+  const rightW = Math.max(0, ...right.map(lineW));
 
   const divX = Math.round(pad + leftW + divGap);
   const rightX = divX + divGap;
@@ -261,7 +297,6 @@ function renderPersonnelPng(f: SigFields): { url: string; width: number } {
   c.fillStyle = '#ffffff';
   c.fillRect(0, 0, W, H);
   c.textBaseline = 'top';
-  c.fillStyle = '#000000';
 
   let y = pad;
   left.forEach((x) => {
@@ -269,6 +304,7 @@ function renderPersonnelPng(f: SigFields): { url: string; width: number } {
       y += Math.round(4 * scale);
       return;
     }
+    c.fillStyle = '#000000';
     c.font = x.b ? fontBold : fontReg;
     c.fillText(x.t as string, pad, y);
     y += lh;
@@ -284,8 +320,16 @@ function renderPersonnelPng(f: SigFields): { url: string; width: number } {
 
   y = pad;
   right.forEach((x) => {
+    let tx = rightX;
+    if (x.icon) {
+      c.drawImage(x.icon, rightX, y + Math.round((F - iconSize) / 2), iconSize, iconSize);
+      tx = rightX + iconSize + iconGap;
+    } else if (x.indent) {
+      tx = rightX + iconSize + iconGap;
+    }
+    c.fillStyle = '#000000';
     c.font = x.b ? fontBold : fontReg;
-    c.fillText(x.t as string, rightX, y);
+    c.fillText(x.t as string, tx, y);
     y += lh;
   });
 
@@ -308,6 +352,7 @@ export default function EmailSignatures() {
     addressLine1: '',
     addressLine2: '',
     phone: '',
+    mobile: '',
     email: '',
     website: PRESETS.lokum.website,
   });
@@ -357,6 +402,7 @@ export default function EmailSignatures() {
       addressLine1: loc?.addressLine1 ?? '',
       addressLine2: loc?.addressLine2 ?? '',
       phone: (company === 'ogas' ? loc?.ogasPhone : loc?.lokumPhone) ?? p.phone ?? '',
+      mobile: '',
       email: p.email ?? '',
       website: PRESETS[company].website,
     });
@@ -374,11 +420,17 @@ export default function EmailSignatures() {
 
   // Kişi/alanlar değişince bilgi bloğunu otomatik PNG'ye çevir
   useEffect(() => {
-    try {
-      setPersonImg(renderPersonnelPng(fields));
-    } catch {
-      setPersonImg(null);
-    }
+    let cancelled = false;
+    renderPersonnelPng(fields)
+      .then((img) => {
+        if (!cancelled) setPersonImg(img);
+      })
+      .catch(() => {
+        if (!cancelled) setPersonImg(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [fields]);
 
   const generatedHtml = useMemo(
@@ -521,6 +573,7 @@ export default function EmailSignatures() {
                 {field('Adres Satır 1', 'addressLine1', { textarea: true, col: 'col-12' })}
                 {field('Adres Satır 2', 'addressLine2', { textarea: true, col: 'col-12' })}
                 {field('Sabit Telefon', 'phone')}
+                {field('Cep Telefonu', 'mobile')}
                 {field('E-posta', 'email')}
                 {field('Web Sitesi', 'website')}
               </div>
