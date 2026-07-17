@@ -110,13 +110,19 @@ function boldNames(text: string, names: string[]): string {
 
 /** Form alanlarından imza HTML'i üretir (görseller URL olarak). */
 /** Kısa imza: sadece selamlama + isim + unvan + İngilizce unvan + firma. */
-function buildCompactHtml(f: SigFields): string {
-  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;">
-  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
-  <div style="font-size:10pt;font-weight:bold;">${esc(f.fullName)}</div>
+function buildCompactHtml(
+  f: SigFields,
+  img?: { url: string; width: number },
+): string {
+  const body = img
+    ? `<img src="${img.url}" width="${img.width}" alt="İmza" style="display:block;border:none;" />`
+    : `<div style="font-size:10pt;font-weight:bold;">${esc(f.fullName)}</div>
   ${f.title ? `<div>${esc(f.title)}</div>` : ''}
   ${f.englishTitle ? `<div>${esc(f.englishTitle)}</div>` : ''}
-  ${f.companyName ? `<div style="font-weight:bold;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}
+  ${f.companyName ? `<div style="font-weight:bold;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}`;
+  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;">
+  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
+  ${body}
 </div>`;
 }
 
@@ -345,6 +351,59 @@ async function renderPersonnelPng(
   return { url: cv.toDataURL('image/png'), width: Math.round(W / scale) };
 }
 
+/** Kısa imza bloğunu Canvas ile PNG'ye çizer (tek sütun). */
+async function renderCompactPng(
+  f: SigFields,
+): Promise<{ url: string; width: number }> {
+  const scale = 3;
+  const F = 12 * scale; // 9pt
+  const Fname = Math.round((F * 10) / 9); // 10pt
+  const lh = Math.round(F * 1.42);
+  const lhName = Math.round(Fname * 1.42);
+  const pad = 8 * scale;
+  const reg = `${F}px "Times New Roman", Times, serif`;
+  const bold = `bold ${F}px "Times New Roman", Times, serif`;
+  const boldName = `bold ${Fname}px "Times New Roman", Times, serif`;
+
+  type L = { t: string; font: string; lh: number };
+  const lines: L[] = [{ t: f.fullName, font: boldName, lh: lhName }];
+  if (f.title) lines.push({ t: f.title, font: reg, lh });
+  if (f.englishTitle) lines.push({ t: f.englishTitle, font: reg, lh });
+  (f.companyName || '').split('\n').forEach((ln) => {
+    if (ln) lines.push({ t: ln, font: bold, lh });
+  });
+
+  const cv = document.createElement('canvas');
+  const m = cv.getContext('2d')!;
+  let maxW = 0;
+  lines.forEach((l) => {
+    m.font = l.font;
+    maxW = Math.max(maxW, m.measureText(l.t).width);
+  });
+  const W = Math.ceil(maxW + pad * 2);
+  let H = pad;
+  lines.forEach((l) => {
+    H += l.lh;
+  });
+  H = Math.ceil(H + pad);
+
+  cv.width = W;
+  cv.height = H;
+  const c = cv.getContext('2d')!;
+  c.fillStyle = '#ffffff';
+  c.fillRect(0, 0, W, H);
+  c.textBaseline = 'top';
+  c.fillStyle = '#000000';
+  let y = pad;
+  lines.forEach((l) => {
+    c.font = l.font;
+    c.fillText(l.t, pad, y);
+    y += l.lh;
+  });
+
+  return { url: cv.toDataURL('image/png'), width: Math.round(W / scale) };
+}
+
 export default function EmailSignatures() {
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -431,7 +490,10 @@ export default function EmailSignatures() {
   // Kişi/alanlar değişince bilgi bloğunu otomatik PNG'ye çevir
   useEffect(() => {
     let cancelled = false;
-    renderPersonnelPng(fields)
+    (format === 'compact'
+      ? renderCompactPng(fields)
+      : renderPersonnelPng(fields)
+    )
       .then((img) => {
         if (!cancelled) setPersonImg(img);
       })
@@ -441,12 +503,12 @@ export default function EmailSignatures() {
     return () => {
       cancelled = true;
     };
-  }, [fields]);
+  }, [fields, format]);
 
   const generatedHtml = useMemo(
     () =>
       format === 'compact'
-        ? buildCompactHtml(fields)
+        ? buildCompactHtml(fields, personImg ?? undefined)
         : buildSignatureHtml(fields, personImg ?? undefined),
     [fields, personImg, format],
   );
