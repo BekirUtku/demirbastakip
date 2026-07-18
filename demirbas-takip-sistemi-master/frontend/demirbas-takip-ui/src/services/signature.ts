@@ -275,7 +275,7 @@ function loadIcon(src: string): Promise<HTMLImageElement | null> {
 export async function renderPersonnelPng(
   f: SigFields,
 ): Promise<{ url: string; width: number }> {
-  const scale = 3;
+  const scale = 2;
   const F = Math.round((STYLE.size * 4) / 3) * scale; // pt -> px
   const lh = Math.round(F * 1.42);
   const pad = 8 * scale;
@@ -432,7 +432,7 @@ export async function renderPersonnelPng(
 export async function renderCompactPng(
   f: SigFields,
 ): Promise<{ url: string; width: number }> {
-  const scale = 3;
+  const scale = 2;
   const F = Math.round((STYLE.size * 4) / 3) * scale; // pt -> px
   const Fname = Math.round((F * (STYLE.size + 1)) / STYLE.size);
   const lh = Math.round(F * 1.42);
