@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import Header from '../components/layout/Header';
+import { Modal } from 'react-bootstrap';
 import {
   PRESETS,
   GREETING_DEFAULT,
@@ -44,6 +45,7 @@ export default function EmailSignatures() {
   const [format, setFormat] = useState<'full' | 'compact'>('full');
   const [rawMode, setRawMode] = useState(false);
   const [fieldsOpen, setFieldsOpen] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -737,6 +739,27 @@ export default function EmailSignatures() {
         </div>
       </div>
     </div>
+
+      <button
+        type="button"
+        className="btn btn-primary"
+        style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 1050, borderRadius: 24, boxShadow: '0 3px 10px rgba(0,0,0,0.25)', padding: '8px 18px', fontWeight: 600 }}
+        onClick={() => setShowPreview(true)}
+      >
+        👁 Önizle
+      </button>
+
+      <Modal show={showPreview} onHide={() => setShowPreview(false)} size="lg" centered scrollable>
+        <Modal.Header closeButton>
+          <Modal.Title style={{ fontSize: 15 }}>Canlı Önizleme</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div
+            style={{ border: '1px solid #e0e0e0', borderRadius: 6, padding: 16, background: '#ffffff', overflowX: 'auto' }}
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+          />
+        </Modal.Body>
+      </Modal>
     </>
   );
 }
