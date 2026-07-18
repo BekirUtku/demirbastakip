@@ -348,11 +348,16 @@ export default function EmailSignatures() {
     setDlOutlook(true);
     try {
       const JSZip = (await import('jszip')).default;
-      const safe = (fields.fullName || 'imza').replace(/[^\p{L}\p{N}]+/gu, '_');
-      const baseName = `${PRESETS[fields.company].label}_${safe}`.replace(
-        /[^\p{L}\p{N}_]+/gu,
-        '_',
-      );
+      const trMap: Record<string, string> = {
+        ı: 'i', İ: 'I', ş: 's', Ş: 'S', ğ: 'g', Ğ: 'G',
+        ç: 'c', Ç: 'C', ö: 'o', Ö: 'O', ü: 'u', Ü: 'U',
+      };
+      const ascii = (t: string) =>
+        t
+          .replace(/[ıİşŞğĞçÇöÖüÜ]/g, (ch) => trMap[ch] || ch)
+          .replace(/[^A-Za-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '') || 'imza';
+      const baseName = `${ascii(PRESETS[fields.company].label)}_${ascii(fields.fullName || 'imza')}`;
       const pkg = await buildOutlookPackage(fields, format, ov, baseName);
       const zip = new JSZip();
       zip.file(`${baseName}.htm`, pkg.htm);
