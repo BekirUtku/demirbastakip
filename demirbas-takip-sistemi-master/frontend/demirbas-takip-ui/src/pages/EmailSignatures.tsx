@@ -13,6 +13,9 @@ import {
   embedImages,
   assetOverrides,
   buildOutlookPackage,
+  renderCombinedImage,
+  buildSingleImageHtml,
+  copyHtmlToClipboard,
   getSignatureStyle,
   setSignatureStyle,
   type CompanyKey,
@@ -69,6 +72,8 @@ export default function EmailSignatures() {
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [dlOutlook, setDlOutlook] = useState(false);
+  const [singleBusy, setSingleBusy] = useState(false);
+  const [singleCopied, setSingleCopied] = useState(false);
   const [copied, setCopied] = useState(false);
   const [bulkIds, setBulkIds] = useState<number[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -390,6 +395,45 @@ export default function EmailSignatures() {
     }
   };
 
+  const handleCopySingle = async () => {
+    setSingleBusy(true);
+    try {
+      const combined = await renderCombinedImage(fields, ov);
+      const inner = buildSingleImageHtml(fields, combined);
+      await copyHtmlToClipboard(inner);
+      setSingleCopied(true);
+      setTimeout(() => setSingleCopied(false), 2000);
+    } catch (e) {
+      console.error('Tek görsel kopyalama hatası:', e);
+      alert('Tek görsel kopyalanamadı.');
+    } finally {
+      setSingleBusy(false);
+    }
+  };
+  const handleDownloadSingle = async () => {
+    setSingleBusy(true);
+    try {
+      const combined = await renderCombinedImage(fields, ov);
+      const inner = buildSingleImageHtml(fields, combined);
+      const doc = `<html>\n<head>\n<meta charset="utf-8">\n<title>Imza</title>\n</head>\n<body style="margin:0;padding:0;">\n${inner}\n</body>\n</html>`;
+      const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safe = (fields.fullName || 'imza').replace(/[^\p{L}\p{N}]+/gu, '_');
+      a.href = url;
+      a.download = `${PRESETS[fields.company].label}_${safe}_tekgorsel.htm`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Tek görsel indirme hatası:', e);
+      alert('Tek görsel indirilemedi.');
+    } finally {
+      setSingleBusy(false);
+    }
+  };
+
   const buildDoc = async (flds: SigFields): Promise<string> => {
     const img =
       format === 'compact'
@@ -609,6 +653,27 @@ export default function EmailSignatures() {
                 title="Outlook imza klasörüne koy; gönderirken resimler cid ile gömülür, ek olmaz"
               >
                 {dlOutlook ? 'Hazırlanıyor…' : '📧 Outlook imzası (CID)'}
+              </button>
+            </div>
+
+            <div className="d-flex gap-2 mt-2 align-items-center flex-wrap">
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Ek oluşmayan (tek görsel):
+              </span>
+              <button
+                className={`btn btn-sm ${singleCopied ? 'btn-success' : 'btn-outline-primary'}`}
+                onClick={handleCopySingle}
+                disabled={singleBusy}
+                title="Tüm görseller tek PNG olur; Gmail/Outlook'ta ek yığını olmaz"
+              >
+                {singleBusy ? 'Hazırlanıyor…' : singleCopied ? '✓ Kopyalandı' : '🖼️ Tek görsel kopyala'}
+              </button>
+              <button
+                className="btn btn-sm btn-outline-secondary"
+                onClick={handleDownloadSingle}
+                disabled={singleBusy}
+              >
+                🖼️ Tek görsel indir
               </button>
             </div>
           </div>

@@ -593,6 +593,115 @@ export async function copyHtmlToClipboard(embedded: string): Promise<void> {
 }
 
 /** Bir personel için imzayı üretip panoya kopyalar. */
+function loadAnyImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = src.startsWith('data:') ? src : encodeURI(src);
+  });
+}
+
+/** Logo + kişi bilgisi + banner + e-fatura'yı TEK bir PNG'ye çizer (ek/attachment sorununu azaltır). */
+export async function renderCombinedImage(
+  fields: SigFields,
+  ov?: AssetOverride,
+): Promise<{ url: string; width: number }> {
+  const SC = 2;
+  const p = PRESETS[fields.company];
+  const logoA = ov?.logo ?? { url: p.logo, width: p.logoWidth, ox: 0, oy: 0 };
+  const bannersList =
+    ov?.banners ?? p.banners.map((b) => ({ url: b, width: 220, ox: 0, oy: 0 }));
+  const efat = ov?.efatura ?? { url: p.efatura, width: 130, ox: 0, oy: 0 };
+
+  const info = await renderPersonnelPng(fields);
+  const [infoImg, logoImg, efatImg, ...bannerImgs] = await Promise.all([
+    loadAnyImage(info.url),
+    loadAnyImage(logoA.url),
+    loadAnyImage(efat.url),
+    ...bannersList.map((b) => loadAnyImage(b.url)),
+  ]);
+
+  const dispH = (img: HTMLImageElement | null, w: number) =>
+    img && img.naturalWidth ? (img.naturalHeight * w) / img.naturalWidth : 0;
+
+  const gapLogo = 16;
+  const infoH = dispH(infoImg, info.width);
+  const logoH = dispH(logoImg, logoA.width);
+  const infoX = logoA.width + gapLogo;
+  const row1W = infoX + info.width;
+  const row1H = Math.max(logoH, infoH);
+
+  const banners = bannerImgs.map((im, i) => ({
+    img: im,
+    w: bannersList[i].width,
+    h: dispH(im, bannersList[i].width),
+    ox: bannersList[i].ox,
+    oy: bannersList[i].oy,
+  }));
+  const efW = efat.width;
+  const efH = dispH(efatImg, efW);
+  let row2W = 0;
+  banners.forEach((b) => (row2W += b.w + 12));
+  row2W += 4 + efW;
+  const row2H = Math.max(0, ...banners.map((b) => b.h), efH);
+
+  const marginRow2 = 14;
+  const W = Math.ceil(Math.max(row1W, row2W));
+  const H = Math.ceil(row1H + (row2H > 0 ? marginRow2 + row2H : 0));
+
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, W * SC);
+  cv.height = Math.max(1, H * SC);
+  const c = cv.getContext('2d')!;
+  c.scale(SC, SC);
+  c.imageSmoothingEnabled = true;
+  c.imageSmoothingQuality = 'high';
+  c.fillStyle = '#ffffff';
+  c.fillRect(0, 0, W, H);
+
+  if (logoImg) c.drawImage(logoImg, logoA.ox, logoA.oy, logoA.width, logoH);
+  if (infoImg) c.drawImage(infoImg, infoX, 0, info.width, infoH);
+
+  const y2 = row1H + marginRow2;
+  let x = 0;
+  for (const b of banners) {
+    if (b.img) c.drawImage(b.img, x + b.ox, y2 + b.oy, b.w, b.h);
+    x += b.w + 12;
+  }
+  x += 4;
+  if (efatImg) {
+    const ey = y2 + Math.max(0, (row2H - efH) / 2) + efat.oy;
+    c.drawImage(efatImg, x + efat.ox, ey, efW, efH);
+  }
+
+  return { url: cv.toDataURL('image/png'), width: W };
+}
+
+/** Tek görsel imza HTML'i: greeting + tek PNG + yasal uyarı (metin). */
+export function buildSingleImageHtml(
+  f: SigFields,
+  combined: { url: string; width: number },
+): string {
+  const p = PRESETS[f.company];
+  const legalNames =
+    f.company === 'lokum' ? [LOKUM_LEGAL, LOKUM_LEGAL_FIRST] : [OGAS_LEGAL];
+  const discTr = boldNames(esc(p.disclaimerTr), legalNames);
+  const discEn = boldNames(esc(p.disclaimerEn), legalNames);
+  return `<div style="font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
+  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
+  <img src="${combined.url}" width="${combined.width}" alt="İmza" style="display:block;border:none;" />
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
+    <tr>
+      <td style="border:1px solid #000000;padding:8px;font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
+        <b>YASAL UYARI</b><br />${discTr}<br /><br />
+        <b>DISCLAIMER</b><br />${discEn}
+      </td>
+    </tr>
+  </table>
+</div>`;
+}
+
 /** Outlook imzası paketi: resimler göreli yolla (baseName_files/), Outlook gönderirken cid gömer. */
 export async function buildOutlookPackage(
   fields: SigFields,
