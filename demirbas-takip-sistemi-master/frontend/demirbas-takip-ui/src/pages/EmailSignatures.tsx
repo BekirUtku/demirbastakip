@@ -38,6 +38,7 @@ export default function EmailSignatures() {
 
   const [format, setFormat] = useState<'full' | 'compact'>('full');
   const [rawMode, setRawMode] = useState(false);
+  const [fieldsOpen, setFieldsOpen] = useState(true);
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -338,8 +339,8 @@ export default function EmailSignatures() {
             </div>
 
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <strong style={{ fontSize: 13 }}>
-                {rawMode ? 'HAM HTML' : 'ALANLAR'}
+              <strong style={{ fontSize: 13, cursor: 'pointer' }} onClick={() => setFieldsOpen((o) => !o)}>
+                {fieldsOpen ? '▼' : '▶'} {rawMode ? 'HAM HTML' : 'ALANLAR'}
               </strong>
               {rawMode ? (
                 <button className="btn btn-sm btn-outline-secondary" onClick={backToForm}>
@@ -352,7 +353,7 @@ export default function EmailSignatures() {
               )}
             </div>
 
-            {rawMode ? (
+            {fieldsOpen && (rawMode ? (
               <textarea
                 className="form-control"
                 style={{ fontFamily: 'monospace', fontSize: 12, minHeight: 360 }}
@@ -373,7 +374,7 @@ export default function EmailSignatures() {
                 {field('Cep Telefonu', 'mobile', { format: formatTrPhone })}
                 {field('Web Sitesi', 'website')}
               </div>
-            )}
+            ))}
 
             <div className="d-flex gap-2 mt-3">
               <button
