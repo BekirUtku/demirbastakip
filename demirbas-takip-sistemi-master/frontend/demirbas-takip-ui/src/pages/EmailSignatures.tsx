@@ -263,6 +263,22 @@ export default function EmailSignatures() {
       await reloadAssets();
     } catch { alert('Görsel silinemedi.'); }
   };
+  const moveAsset = async (list: any[], index: number, dir: -1 | 1) => {
+    const target = list[index + dir];
+    const cur = list[index];
+    if (!target || !cur) return;
+    try {
+      await Promise.all([
+        api.put(`/signature-assets/${cur.id}`, {
+          width: cur.width, sortOrder: target.sortOrder, isActive: cur.isActive,
+        }),
+        api.put(`/signature-assets/${target.id}`, {
+          width: target.width, sortOrder: cur.sortOrder, isActive: target.isActive,
+        }),
+      ]);
+      await reloadAssets();
+    } catch { alert('Sıra değiştirilemedi.'); }
+  };
 
   const buildDoc = async (flds: SigFields): Promise<string> => {
     const img =
@@ -510,7 +526,7 @@ export default function EmailSignatures() {
                           </div>
                         ) : (
                           <div className="d-flex flex-wrap gap-2">
-                            {list.map((a) => (
+                            {list.map((a, idx) => (
                               <div
                                 key={a.id}
                                 style={{
@@ -534,14 +550,18 @@ export default function EmailSignatures() {
                                   <img src={a.url} alt={a.originalName} style={{ maxWidth: '100%', maxHeight: 44 }} />
                                 </div>
                                 <div className="d-flex align-items-center gap-1 mt-1">
-                                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gen.</span>
-                                  <input
-                                    type="number"
-                                    defaultValue={a.width}
-                                    className="form-control form-control-sm"
-                                    style={{ fontSize: 11, padding: '1px 4px', height: 24, width: 56 }}
-                                    onBlur={(e) => changeAssetWidth(a, e.target.value)}
-                                  />
+                                  <button
+                                    className="action-btn"
+                                    style={{ background: '#eef2ff', color: '#4338ca', fontSize: 11, opacity: idx === 0 ? 0.4 : 1 }}
+                                    title="Yukarı taşı" disabled={idx === 0}
+                                    onClick={() => moveAsset(list, idx, -1)}
+                                  >▲</button>
+                                  <button
+                                    className="action-btn"
+                                    style={{ background: '#eef2ff', color: '#4338ca', fontSize: 11, opacity: idx === list.length - 1 ? 0.4 : 1 }}
+                                    title="Aşağı taşı" disabled={idx === list.length - 1}
+                                    onClick={() => moveAsset(list, idx, 1)}
+                                  >▼</button>
                                   <button
                                     className="action-btn"
                                     style={{ background: a.isActive ? '#dcfce7' : '#fef9c3', color: a.isActive ? 'var(--success)' : '#a16207', fontSize: 12 }}
@@ -558,6 +578,17 @@ export default function EmailSignatures() {
                                   >
                                     🗑️
                                   </button>
+                                </div>
+                                <div className="d-flex align-items-center gap-1 mt-1">
+                                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gen.</span>
+                                  <input
+                                    type="number"
+                                    defaultValue={a.width}
+                                    className="form-control form-control-sm"
+                                    style={{ fontSize: 11, padding: '1px 4px', height: 24, width: 70 }}
+                                    onBlur={(e) => changeAssetWidth(a, e.target.value)}
+                                  />
+                                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>px</span>
                                 </div>
                               </div>
                             ))}
