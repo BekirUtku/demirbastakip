@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
         Set<SignatureLocation>();
 
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<SignatureAsset> SignatureAssets => Set<SignatureAsset>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -115,6 +116,15 @@ public class AppDbContext : DbContext
                 x.Type,
                 x.IsActive
             });
+        });
+
+        modelBuilder.Entity<SignatureAsset>(entity =>
+        {
+            entity.Property(a => a.Company).HasMaxLength(20).IsRequired();
+            entity.Property(a => a.Kind).HasMaxLength(20).IsRequired();
+            entity.Property(a => a.FileName).HasMaxLength(260).IsRequired();
+            entity.Property(a => a.OriginalName).HasMaxLength(260);
+            entity.HasIndex(a => new { a.Company, a.Kind });
         });
 
         modelBuilder.Entity<Branch>(entity =>

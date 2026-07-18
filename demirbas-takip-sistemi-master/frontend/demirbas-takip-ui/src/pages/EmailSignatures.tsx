@@ -10,6 +10,7 @@ import {
   renderPersonnelPng,
   renderCompactPng,
   embedImages,
+  assetOverrides,
   type CompanyKey,
   type SigFields,
 } from '../services/signature';
@@ -18,6 +19,10 @@ export default function EmailSignatures() {
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [assetsOpen, setAssetsOpen] = useState(false);
+  const [assetCompany, setAssetCompany] = useState<CompanyKey>('lokum');
+  const [uploadingKind, setUploadingKind] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | ''>('');
 
   const [fields, setFields] = useState<SigFields>({
@@ -50,14 +55,16 @@ export default function EmailSignatures() {
   useEffect(() => {
     (async () => {
       try {
-        const [pRes, lRes, cRes] = await Promise.all([
+        const [pRes, lRes, cRes, aRes] = await Promise.all([
           api.get('/Personnel'),
           api.get('/signature-locations').catch(() => ({ data: [] })),
           api.get('/Companies').catch(() => ({ data: [] })),
+          api.get('/signature-assets').catch(() => ({ data: [] })),
         ]);
         setPersonnel(pRes.data || []);
         setLocations(lRes.data || []);
         setCompanies(cRes.data || []);
+        setAssets(aRes.data || []);
       } catch (e) {
         console.error('Veri yükleme hatası:', e);
       }
@@ -144,12 +151,16 @@ export default function EmailSignatures() {
     };
   }, [fields, format]);
 
+  const ov = useMemo(
+    () => assetOverrides(assets, fields.company),
+    [assets, fields.company],
+  );
   const generatedHtml = useMemo(
     () =>
       format === 'compact'
         ? buildCompactHtml(fields, personImg ?? undefined)
-        : buildSignatureHtml(fields, personImg ?? undefined),
-    [fields, personImg, format],
+        : buildSignatureHtml(fields, personImg ?? undefined, ov),
+    [fields, personImg, format, ov],
   );
   const previewHtml = rawMode ? rawHtml : generatedHtml;
 
@@ -202,6 +213,57 @@ export default function EmailSignatures() {
     }
   };
 
+  const reloadAssets = async () => {
+    try {
+      const r = await api.get('/signature-assets');
+      setAssets(r.data || []);
+    } catch { /* yoksay */ }
+  };
+  const handleUpload = async (kind: string, file?: File | null) => {
+    if (!file) return;
+    setUploadingKind(kind);
+    try {
+      const fd = new FormData();
+      fd.append('company', assetCompany);
+      fd.append('kind', kind);
+      fd.append('file', file);
+      await api.post('/signature-assets', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      await reloadAssets();
+    } catch (e) {
+      console.error('Görsel yükleme hatası:', e);
+      alert('Görsel yüklenemedi.');
+    } finally {
+      setUploadingKind(null);
+    }
+  };
+  const toggleAsset = async (a: any) => {
+    try {
+      await api.put(`/signature-assets/${a.id}`, {
+        width: a.width, sortOrder: a.sortOrder, isActive: !a.isActive,
+      });
+      await reloadAssets();
+    } catch { alert('Durum güncellenemedi.'); }
+  };
+  const changeAssetWidth = async (a: any, w: string) => {
+    const width = Number(w) || a.width;
+    if (width === a.width) return;
+    try {
+      await api.put(`/signature-assets/${a.id}`, {
+        width, sortOrder: a.sortOrder, isActive: a.isActive,
+      });
+      await reloadAssets();
+    } catch { /* yoksay */ }
+  };
+  const deleteAsset = async (id: number) => {
+    if (!window.confirm('Bu görsel silinsin mi?')) return;
+    try {
+      await api.delete(`/signature-assets/${id}`);
+      await reloadAssets();
+    } catch { alert('Görsel silinemedi.'); }
+  };
+
   const buildDoc = async (flds: SigFields): Promise<string> => {
     const img =
       format === 'compact'
@@ -210,7 +272,7 @@ export default function EmailSignatures() {
     const inner =
       format === 'compact'
         ? buildCompactHtml(flds, img)
-        : buildSignatureHtml(flds, img);
+        : buildSignatureHtml(flds, img, assetOverrides(assets, flds.company));
     const embedded = await embedImages(inner);
     return `<html>\n<head>\n<meta charset="utf-8">\n<title>Imza</title>\n</head>\n<body style="margin:0;padding:0;">\n${embedded}\n</body>\n</html>`;
   };
@@ -387,6 +449,130 @@ export default function EmailSignatures() {
                 {downloading ? 'İndiriliyor…' : '⬇️ .htm olarak indir'}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* İmza görselleri yönetimi */}
+        <div className="col-12 mb-4">
+          <div className="card p-3">
+            <div
+              className="d-flex justify-content-between align-items-center"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setAssetsOpen((o) => !o)}
+            >
+              <strong style={{ fontSize: 13 }}>
+                {assetsOpen ? '▼' : '▶'} 🖼️ İMZA GÖRSELLERİ (Logo & Banner)
+              </strong>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Firmaya özel · yükle / sil / aktif
+              </span>
+            </div>
+            {assetsOpen && (
+              <div className="mt-3">
+                <div className="btn-group btn-group-sm w-100 mb-3">
+                  {(['lokum', 'ogas'] as CompanyKey[]).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`btn btn-sm ${assetCompany === c ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setAssetCompany(c)}
+                    >
+                      {PRESETS[c].label}
+                    </button>
+                  ))}
+                </div>
+
+                {([['logo', 'LOGO'], ['banner', "BANNER'LAR"], ['efatura', 'E-FATURA']] as [string, string][]).map(
+                  ([kind, label]) => {
+                    const list = assets.filter(
+                      (a) => a.company === assetCompany && a.kind === kind,
+                    );
+                    return (
+                      <div key={kind} className="mb-3">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <strong style={{ fontSize: 12 }}>{label}</strong>
+                          <label className="btn btn-sm btn-outline-success mb-0" style={{ cursor: 'pointer' }}>
+                            {uploadingKind === kind ? 'Yükleniyor…' : '+ Görsel Yükle'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={(e) => {
+                                handleUpload(kind, e.target.files?.[0]);
+                                e.currentTarget.value = '';
+                              }}
+                            />
+                          </label>
+                        </div>
+                        {list.length === 0 ? (
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            Görsel yok — varsayılan kullanılır.
+                          </div>
+                        ) : (
+                          <div className="d-flex flex-wrap gap-2">
+                            {list.map((a) => (
+                              <div
+                                key={a.id}
+                                style={{
+                                  border: '1px solid #e0e0e0',
+                                  borderRadius: 6,
+                                  padding: 6,
+                                  width: 150,
+                                  background: a.isActive ? '#fff' : '#f8f8f8',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    height: 44,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    overflow: 'hidden',
+                                    opacity: a.isActive ? 1 : 0.4,
+                                  }}
+                                >
+                                  <img src={a.url} alt={a.originalName} style={{ maxWidth: '100%', maxHeight: 44 }} />
+                                </div>
+                                <div className="d-flex align-items-center gap-1 mt-1">
+                                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gen.</span>
+                                  <input
+                                    type="number"
+                                    defaultValue={a.width}
+                                    className="form-control form-control-sm"
+                                    style={{ fontSize: 11, padding: '1px 4px', height: 24, width: 56 }}
+                                    onBlur={(e) => changeAssetWidth(a, e.target.value)}
+                                  />
+                                  <button
+                                    className="action-btn"
+                                    style={{ background: a.isActive ? '#dcfce7' : '#fef9c3', color: a.isActive ? 'var(--success)' : '#a16207', fontSize: 12 }}
+                                    title={a.isActive ? 'Pasife al' : 'Aktif et'}
+                                    onClick={() => toggleAsset(a)}
+                                  >
+                                    {a.isActive ? '✓' : '⛔'}
+                                  </button>
+                                  <button
+                                    className="action-btn"
+                                    style={{ background: '#fee2e2', color: 'var(--danger)', fontSize: 12 }}
+                                    title="Sil"
+                                    onClick={() => deleteAsset(a.id)}
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  },
+                )}
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Not: Aktif görseller imzalarda kullanılır. Hiç görsel yoksa yerleşik varsayılanlar geçerlidir.
+                  Banner sırası yükleme sırasına göredir.
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

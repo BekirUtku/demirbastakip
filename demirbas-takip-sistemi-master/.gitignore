@@ -36,3 +36,6 @@ publish/
 
 # User-uploaded photos (runtime files, not source code)
 backend/DemirbasTakip.Api/wwwroot/uploads/
+
+# Signature uploaded assets (runtime)
+backend/DemirbasTakip.Api/wwwroot/signatures/uploads/

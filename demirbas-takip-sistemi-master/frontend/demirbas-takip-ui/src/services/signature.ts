@@ -65,6 +65,12 @@ export const GREETING_DEFAULT = 'Saygılar Sunar, İşlerinizde Başarılar Dile
 /*  Yardımcılar                                                     */
 /* ------------------------------------------------------------------ */
 
+export interface AssetOverride {
+  logo?: { url: string; width: number };
+  banners?: { url: string; width: number }[];
+  efatura?: { url: string; width: number };
+}
+
 export interface SigFields {
   company: CompanyKey;
   greeting: string;
@@ -126,8 +132,13 @@ export function buildCompactHtml(
 export function buildSignatureHtml(
   f: SigFields,
   personImg?: { url: string; width: number },
+  ov?: AssetOverride,
 ): string {
   const p = PRESETS[f.company];
+  const logoUrl = ov?.logo?.url ?? p.logo;
+  const logoW = ov?.logo?.width ?? p.logoWidth;
+  const bannersList = ov?.banners ?? p.banners.map((b) => ({ url: b, width: 220 }));
+  const efat = ov?.efatura ?? { url: p.efatura, width: 130 };
   const websiteHref =
     f.website.startsWith('http') ? f.website : `https://${f.website}`;
 
@@ -136,10 +147,10 @@ export function buildSignatureHtml(
   const discTr = boldNames(esc(p.disclaimerTr), legalNames);
   const discEn = boldNames(esc(p.disclaimerEn), legalNames);
 
-  const bannerCells = p.banners
+  const bannerCells = bannersList
     .map(
       (b) =>
-        `<td style="padding:0 12px 0 0;vertical-align:top;"><img src="${b}" width="220" alt="Kampanya" style="display:block;border:none;" /></td>`,
+        `<td style="padding:0 12px 0 0;vertical-align:top;"><img src="${b.url}" width="${b.width}" alt="Kampanya" style="display:block;border:none;" /></td>`,
     )
     .join('');
 
@@ -165,14 +176,14 @@ export function buildSignatureHtml(
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;font-family:'Times New Roman', Times, serif;">
     <tr>
       <td style="vertical-align:${p.logoValign};padding-right:16px;">
-        <img src="${p.logo}" width="${p.logoWidth}" alt="${esc(p.label)}" style="display:block;border:none;" />
+        <img src="${logoUrl}" width="${logoW}" alt="${esc(p.label)}" style="display:block;border:none;" />
       </td>
       ${infoCells}
     </tr>
   </table>
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;">
-    <tr>${bannerCells}<td style="vertical-align:middle;padding:0 0 0 4px;"><img src="${p.efatura}" width="130" alt="E-Fatura" style="display:block;border:none;" /></td></tr>
+    <tr>${bannerCells}<td style="vertical-align:middle;padding:0 0 0 4px;"><img src="${efat.url}" width="${efat.width}" alt="E-Fatura" style="display:block;border:none;" /></td></tr>
   </table>
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
@@ -201,7 +212,7 @@ async function toDataUri(path: string): Promise<string> {
 /** HTML içindeki tüm /logos/... görsellerini base64 gömer (mail-uyumlu). */
 export async function embedImages(html: string): Promise<string> {
   const paths = Array.from(
-    new Set((html.match(/\/logos\/[^"')\s]+/g) || [])),
+    new Set((html.match(/\/(?:logos|signatures\/uploads)\/[^"')\s]+/g) || [])),
   );
   let out = html;
   for (const p of paths) {
@@ -508,6 +519,7 @@ export function fieldsForPersonnel(
 export async function buildSignatureInner(
   fields: SigFields,
   format: 'full' | 'compact',
+  ov?: AssetOverride,
 ): Promise<string> {
   const img =
     format === 'compact'
@@ -516,8 +528,23 @@ export async function buildSignatureInner(
   const inner =
     format === 'compact'
       ? buildCompactHtml(fields, img)
-      : buildSignatureHtml(fields, img);
+      : buildSignatureHtml(fields, img, ov);
   return embedImages(inner);
+}
+
+/** Yüklenen görsellerden firmaya özel override üretir. */
+export function assetOverrides(assets: any[], company: CompanyKey): AssetOverride {
+  const forCo = (assets || []).filter((a) => a.company === company && a.isActive);
+  const pick = (kind: string) =>
+    forCo.filter((a) => a.kind === kind).sort((a, b) => a.sortOrder - b.sortOrder);
+  const logo = pick('logo')[0];
+  const efatura = pick('efatura')[0];
+  const banners = pick('banner');
+  return {
+    logo: logo ? { url: logo.url, width: logo.width } : undefined,
+    efatura: efatura ? { url: efatura.url, width: efatura.width } : undefined,
+    banners: banners.length ? banners.map((b) => ({ url: b.url, width: b.width })) : undefined,
+  };
 }
 
 export async function copyHtmlToClipboard(embedded: string): Promise<void> {
@@ -536,8 +563,10 @@ export async function copyPersonnelSignature(
   locations: any[],
   companies: any[],
   format: 'full' | 'compact' = 'full',
+  assets: any[] = [],
 ): Promise<void> {
   const fields = fieldsForPersonnel(p, locations, companies);
-  const embedded = await buildSignatureInner(fields, format);
+  const ov = assetOverrides(assets, fields.company);
+  const embedded = await buildSignatureInner(fields, format, ov);
   await copyHtmlToClipboard(embedded);
 }

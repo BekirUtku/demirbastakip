@@ -115,6 +115,7 @@ builder.Services.AddScoped<IWordDocumentService, WordDocumentService>();
 builder.Services.AddScoped<IBarcodeService, BarcodeService>();
 builder.Services.AddSingleton<IBirthdayMailService, BirthdayMailService>();
 builder.Services.AddScoped<IPhotoService, PhotoService>();
+builder.Services.AddScoped<ISignatureAssetService, SignatureAssetService>();
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
 {

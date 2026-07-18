@@ -34,6 +34,7 @@ export default function PersonnelPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [locations, setLocations] = useState<Record<string, unknown>[]>([]);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [sigAssets, setSigAssets] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -60,14 +61,15 @@ export default function PersonnelPage() {
 
   const load = async () => {
     try {
-      const [pRes, dRes, cRes, bRes, lRes] = await Promise.all([
+      const [pRes, dRes, cRes, bRes, lRes, aRes] = await Promise.all([
         api.get<Personnel[]>('/personnel'),
         api.get<Department[]>('/personnel/departments'),
         api.get<Company[]>('/personnel/companies'),
         api.get<Branch[]>('/branches').catch(() => ({ data: [] as Branch[] })),
         api.get<Record<string, unknown>[]>('/signature-locations').catch(() => ({ data: [] as Record<string, unknown>[] })),
+        api.get<Record<string, unknown>[]>('/signature-assets').catch(() => ({ data: [] as Record<string, unknown>[] })),
       ]);
-      setPersonnel(pRes.data ?? []); setDepartments(dRes.data ?? []); setCompanies(cRes.data ?? []); setBranches(bRes.data ?? []); setLocations(lRes.data ?? []);
+      setPersonnel(pRes.data ?? []); setDepartments(dRes.data ?? []); setCompanies(cRes.data ?? []); setBranches(bRes.data ?? []); setLocations(lRes.data ?? []); setSigAssets(aRes.data ?? []);
     } catch { setError('VERİLER YÜKLENEMEDİ.'); }
     finally { setLoading(false); }
   };
@@ -121,7 +123,7 @@ export default function PersonnelPage() {
 
   const handleCopySig = async (p: Personnel) => {
     try {
-      await copyPersonnelSignature(p, locations, companies, 'full');
+      await copyPersonnelSignature(p, locations, companies, 'full', sigAssets);
       setCopiedId(p.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (e) {
