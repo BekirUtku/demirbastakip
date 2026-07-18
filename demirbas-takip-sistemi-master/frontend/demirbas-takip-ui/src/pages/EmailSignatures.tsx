@@ -12,6 +12,7 @@ import {
   renderCompactPng,
   embedImages,
   assetOverrides,
+  buildOutlookPackage,
   getSignatureStyle,
   setSignatureStyle,
   type CompanyKey,
@@ -67,6 +68,7 @@ export default function EmailSignatures() {
   const [sigStyle, setSigStyle] = useState<SigStyle>(getSignatureStyle());
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [dlOutlook, setDlOutlook] = useState(false);
   const [copied, setCopied] = useState(false);
   const [bulkIds, setBulkIds] = useState<number[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -342,6 +344,47 @@ export default function EmailSignatures() {
     } catch { alert('Sıra değiştirilemedi.'); }
   };
 
+  const handleDownloadOutlook = async () => {
+    setDlOutlook(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const safe = (fields.fullName || 'imza').replace(/[^\p{L}\p{N}]+/gu, '_');
+      const baseName = `${PRESETS[fields.company].label}_${safe}`.replace(
+        /[^\p{L}\p{N}_]+/gu,
+        '_',
+      );
+      const pkg = await buildOutlookPackage(fields, format, ov, baseName);
+      const zip = new JSZip();
+      zip.file(`${baseName}.htm`, pkg.htm);
+      const folder = zip.folder(`${baseName}_files`)!;
+      for (const fl of pkg.files) folder.file(fl.name, fl.blob);
+      zip.file(
+        'KURULUM.txt',
+        'OUTLOOK IMZA KURULUMU\n\n' +
+          '1) Bu ZIP\'i cikartin.\n' +
+          '2) Icindeki .htm dosyasini ve _files klasorunu BIRLIKTE su klasore kopyalayin:\n' +
+          '   %APPDATA%\\Microsoft\\Signatures\n' +
+          '   (Win+R > %APPDATA%\\Microsoft\\Signatures)\n' +
+          '3) Outlook > Dosya > Secenekler > Posta > Imzalar bolumunden imzayi secin.\n' +
+          '4) Gonderirken Outlook resimleri otomatik inline (cid) gomer; ek olusmaz.\n',
+      );
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${baseName}_Outlook.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Outlook paketi hatası:', e);
+      alert('Outlook imzası oluşturulamadı. Konsolu kontrol edin.');
+    } finally {
+      setDlOutlook(false);
+    }
+  };
+
   const buildDoc = async (flds: SigFields): Promise<string> => {
     const img =
       format === 'compact'
@@ -553,6 +596,14 @@ export default function EmailSignatures() {
                 disabled={downloading}
               >
                 {downloading ? 'İndiriliyor…' : '⬇️ .htm olarak indir'}
+              </button>
+              <button
+                className="btn btn-outline-secondary"
+                onClick={handleDownloadOutlook}
+                disabled={dlOutlook}
+                title="Outlook imza klasörüne koy; gönderirken resimler cid ile gömülür, ek olmaz"
+              >
+                {dlOutlook ? 'Hazırlanıyor…' : '📧 Outlook imzası (CID)'}
               </button>
             </div>
           </div>

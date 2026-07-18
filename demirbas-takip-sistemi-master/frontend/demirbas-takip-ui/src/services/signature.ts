@@ -593,6 +593,61 @@ export async function copyHtmlToClipboard(embedded: string): Promise<void> {
 }
 
 /** Bir personel için imzayı üretip panoya kopyalar. */
+/** Outlook imzası paketi: resimler göreli yolla (baseName_files/), Outlook gönderirken cid gömer. */
+export async function buildOutlookPackage(
+  fields: SigFields,
+  format: 'full' | 'compact',
+  ov: AssetOverride | undefined,
+  baseName: string,
+): Promise<{ htm: string; files: { name: string; blob: Blob }[] }> {
+  const img =
+    format === 'compact'
+      ? await renderCompactPng(fields)
+      : await renderPersonnelPng(fields);
+  const inner =
+    format === 'compact'
+      ? buildCompactHtml(fields, img)
+      : buildSignatureHtml(fields, img, ov);
+
+  const srcs: string[] = [];
+  const re = /src="([^"]+)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(inner))) {
+    if (!srcs.includes(m[1])) srcs.push(m[1]);
+  }
+
+  const files: { name: string; blob: Blob }[] = [];
+  const map = new Map<string, string>();
+  let i = 0;
+  for (const src of srcs) {
+    let blob: Blob | null = null;
+    try {
+      if (src.startsWith('data:')) {
+        blob = await (await fetch(src)).blob();
+      } else if (src.startsWith('/')) {
+        blob = await (await fetch(encodeURI(src))).blob();
+      }
+    } catch {
+      blob = null;
+    }
+    if (!blob) continue;
+    let ext = (blob.type.split('/')[1] || 'png').toLowerCase();
+    if (ext === 'jpeg') ext = 'jpg';
+    if (ext === 'svg+xml') ext = 'svg';
+    i += 1;
+    const fname = `image${String(i).padStart(3, '0')}.${ext}`;
+    files.push({ name: fname, blob });
+    map.set(src, `${baseName}_files/${fname}`);
+  }
+
+  let out = inner;
+  for (const [src, rel] of map) {
+    out = out.split(`src="${src}"`).join(`src="${rel}"`);
+  }
+  const htm = `<html>\n<head>\n<meta charset="utf-8">\n<title>Imza</title>\n</head>\n<body style="margin:0;padding:0;">\n${out}\n</body>\n</html>`;
+  return { htm, files };
+}
+
 export async function copyPersonnelSignature(
   p: any,
   locations: any[],
