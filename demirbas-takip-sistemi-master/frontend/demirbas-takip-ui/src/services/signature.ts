@@ -66,9 +66,9 @@ export const GREETING_DEFAULT = 'Saygılar Sunar, İşlerinizde Başarılar Dile
 /* ------------------------------------------------------------------ */
 
 export interface AssetOverride {
-  logo?: { url: string; width: number };
-  banners?: { url: string; width: number }[];
-  efatura?: { url: string; width: number };
+  logo?: { url: string; width: number; ox: number; oy: number };
+  banners?: { url: string; width: number; ox: number; oy: number }[];
+  efatura?: { url: string; width: number; ox: number; oy: number };
 }
 
 export interface SigFields {
@@ -135,10 +135,10 @@ export function buildSignatureHtml(
   ov?: AssetOverride,
 ): string {
   const p = PRESETS[f.company];
-  const logoUrl = ov?.logo?.url ?? p.logo;
-  const logoW = ov?.logo?.width ?? p.logoWidth;
-  const bannersList = ov?.banners ?? p.banners.map((b) => ({ url: b, width: 220 }));
-  const efat = ov?.efatura ?? { url: p.efatura, width: 130 };
+  const logoA = ov?.logo ?? { url: p.logo, width: p.logoWidth, ox: 0, oy: 0 };
+  const bannersList =
+    ov?.banners ?? p.banners.map((b) => ({ url: b, width: 220, ox: 0, oy: 0 }));
+  const efat = ov?.efatura ?? { url: p.efatura, width: 130, ox: 0, oy: 0 };
   const websiteHref =
     f.website.startsWith('http') ? f.website : `https://${f.website}`;
 
@@ -150,7 +150,7 @@ export function buildSignatureHtml(
   const bannerCells = bannersList
     .map(
       (b) =>
-        `<td style="padding:0 12px 0 0;vertical-align:top;"><img src="${b.url}" width="${b.width}" alt="Kampanya" style="display:block;border:none;" /></td>`,
+        `<td style="padding:0 12px 0 0;vertical-align:top;"><img src="${b.url}" width="${b.width}" alt="Kampanya" style="display:block;border:none;margin:${b.oy}px 0 0 ${b.ox}px;" /></td>`,
     )
     .join('');
 
@@ -176,14 +176,14 @@ export function buildSignatureHtml(
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;font-family:'Times New Roman', Times, serif;">
     <tr>
       <td style="vertical-align:${p.logoValign};padding-right:16px;">
-        <img src="${logoUrl}" width="${logoW}" alt="${esc(p.label)}" style="display:block;border:none;" />
+        <img src="${logoA.url}" width="${logoA.width}" alt="${esc(p.label)}" style="display:block;border:none;margin:${logoA.oy}px 0 0 ${logoA.ox}px;" />
       </td>
       ${infoCells}
     </tr>
   </table>
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;">
-    <tr>${bannerCells}<td style="vertical-align:middle;padding:0 0 0 4px;"><img src="${efat.url}" width="${efat.width}" alt="E-Fatura" style="display:block;border:none;" /></td></tr>
+    <tr>${bannerCells}<td style="vertical-align:middle;padding:0 0 0 4px;"><img src="${efat.url}" width="${efat.width}" alt="E-Fatura" style="display:block;border:none;margin:${efat.oy}px 0 0 ${efat.ox}px;" /></td></tr>
   </table>
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
@@ -543,9 +543,11 @@ export function assetOverrides(assets: any[], company: CompanyKey): AssetOverrid
   const efatura = pick('efatura')[0];
   const banners = pick('banner');
   return {
-    logo: logo ? { url: logo.url, width: logo.width } : undefined,
-    efatura: efatura ? { url: efatura.url, width: efatura.width } : undefined,
-    banners: banners.length ? banners.map((b) => ({ url: b.url, width: b.width })) : undefined,
+    logo: logo ? { url: logo.url, width: logo.width, ox: logo.offsetX || 0, oy: logo.offsetY || 0 } : undefined,
+    efatura: efatura ? { url: efatura.url, width: efatura.width, ox: efatura.offsetX || 0, oy: efatura.offsetY || 0 } : undefined,
+    banners: banners.length
+      ? banners.map((b) => ({ url: b.url, width: b.width, ox: b.offsetX || 0, oy: b.offsetY || 0 }))
+      : undefined,
   };
 }
 

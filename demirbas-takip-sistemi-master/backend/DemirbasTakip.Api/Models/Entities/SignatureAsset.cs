@@ -8,6 +8,8 @@ public class SignatureAsset
     public string FileName { get; set; } = string.Empty;
     public string OriginalName { get; set; } = string.Empty;
     public int Width { get; set; } = 220;
+    public int OffsetX { get; set; }
+    public int OffsetY { get; set; }
     public int SortOrder { get; set; } = 0;
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.Now;

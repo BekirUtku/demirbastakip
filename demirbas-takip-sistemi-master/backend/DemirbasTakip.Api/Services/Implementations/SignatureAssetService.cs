@@ -36,6 +36,8 @@ public class SignatureAssetService : ISignatureAssetService
         Url = $"/{UploadDir}/{a.FileName}",
         OriginalName = a.OriginalName,
         Width = a.Width,
+        OffsetX = a.OffsetX,
+        OffsetY = a.OffsetY,
         SortOrder = a.SortOrder,
         IsActive = a.IsActive,
     };
@@ -98,6 +100,8 @@ public class SignatureAssetService : ISignatureAssetService
         var asset = await _context.SignatureAssets.FindAsync(id);
         if (asset == null) return null;
         if (dto.Width > 0) asset.Width = dto.Width;
+        asset.OffsetX = dto.OffsetX;
+        asset.OffsetY = dto.OffsetY;
         asset.SortOrder = dto.SortOrder;
         asset.IsActive = dto.IsActive;
         await _context.SaveChangesAsync();

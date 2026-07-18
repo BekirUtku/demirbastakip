@@ -241,7 +241,7 @@ export default function EmailSignatures() {
   const toggleAsset = async (a: any) => {
     try {
       await api.put(`/signature-assets/${a.id}`, {
-        width: a.width, sortOrder: a.sortOrder, isActive: !a.isActive,
+        width: a.width, offsetX: a.offsetX || 0, offsetY: a.offsetY || 0, sortOrder: a.sortOrder, isActive: !a.isActive,
       });
       await reloadAssets();
     } catch { alert('Durum güncellenemedi.'); }
@@ -251,7 +251,7 @@ export default function EmailSignatures() {
     if (width === a.width) return;
     try {
       await api.put(`/signature-assets/${a.id}`, {
-        width, sortOrder: a.sortOrder, isActive: a.isActive,
+        width, offsetX: a.offsetX || 0, offsetY: a.offsetY || 0, sortOrder: a.sortOrder, isActive: a.isActive,
       });
       await reloadAssets();
     } catch { /* yoksay */ }
@@ -270,14 +270,29 @@ export default function EmailSignatures() {
     try {
       await Promise.all([
         api.put(`/signature-assets/${cur.id}`, {
-          width: cur.width, sortOrder: target.sortOrder, isActive: cur.isActive,
+          width: cur.width, offsetX: cur.offsetX || 0, offsetY: cur.offsetY || 0, sortOrder: target.sortOrder, isActive: cur.isActive,
         }),
         api.put(`/signature-assets/${target.id}`, {
-          width: target.width, sortOrder: cur.sortOrder, isActive: target.isActive,
+          width: target.width, offsetX: target.offsetX || 0, offsetY: target.offsetY || 0, sortOrder: cur.sortOrder, isActive: target.isActive,
         }),
       ]);
       await reloadAssets();
     } catch { alert('Sıra değiştirilemedi.'); }
+  };
+  const changeAssetOffset = async (a: any, axis: 'x' | 'y', v: string) => {
+    const val = Number(v) || 0;
+    if (axis === 'x' && val === (a.offsetX || 0)) return;
+    if (axis === 'y' && val === (a.offsetY || 0)) return;
+    try {
+      await api.put(`/signature-assets/${a.id}`, {
+        width: a.width,
+        offsetX: axis === 'x' ? val : (a.offsetX || 0),
+        offsetY: axis === 'y' ? val : (a.offsetY || 0),
+        sortOrder: a.sortOrder,
+        isActive: a.isActive,
+      });
+      await reloadAssets();
+    } catch { /* yoksay */ }
   };
 
   const buildDoc = async (flds: SigFields): Promise<string> => {
@@ -589,6 +604,26 @@ export default function EmailSignatures() {
                                     onBlur={(e) => changeAssetWidth(a, e.target.value)}
                                   />
                                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>px</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-1 mt-1" title="İmzada konum kaydırma (px)">
+                                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>↔</span>
+                                  <input
+                                    type="number"
+                                    defaultValue={a.offsetX || 0}
+                                    className="form-control form-control-sm"
+                                    style={{ fontSize: 11, padding: '1px 4px', height: 24, width: 54 }}
+                                    title="Yatay kaydır (+sağ / -sol)"
+                                    onBlur={(e) => changeAssetOffset(a, 'x', e.target.value)}
+                                  />
+                                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>↕</span>
+                                  <input
+                                    type="number"
+                                    defaultValue={a.offsetY || 0}
+                                    className="form-control form-control-sm"
+                                    style={{ fontSize: 11, padding: '1px 4px', height: 24, width: 54 }}
+                                    title="Dikey kaydır (+aşağı / -yukarı)"
+                                    onBlur={(e) => changeAssetOffset(a, 'y', e.target.value)}
+                                  />
                                 </div>
                               </div>
                             ))}
