@@ -290,10 +290,6 @@ export default function EmailSignatures() {
     <>
       <Header title="Mail İmzaları" subtitle="Mail İmza Oluşturma ve Düzenleme" />
       <div className="main-content">
-        <div className="page-header">
-          <h5 className="page-title">✍️ MAIL İMZA DÜZENLEYİCİ</h5>
-        </div>
-
       <div className="row g-4">
         {/* ÜST: Düzenleme paneli */}
         <div className="col-12 mb-4">
