@@ -64,7 +64,7 @@ export default function EmailSignatures() {
         setPersonnel(pRes.data || []);
         setLocations(lRes.data || []);
         setCompanies(cRes.data || []);
-        setAssets(aRes.data || []);
+        setAssets(Array.isArray(aRes.data) ? aRes.data : []);
       } catch (e) {
         console.error('Veri yükleme hatası:', e);
       }
@@ -216,7 +216,7 @@ export default function EmailSignatures() {
   const reloadAssets = async () => {
     try {
       const r = await api.get('/signature-assets');
-      setAssets(r.data || []);
+      setAssets(Array.isArray(r.data) ? r.data : []);
     } catch { /* yoksay */ }
   };
   const handleUpload = async (kind: string, file?: File | null) => {

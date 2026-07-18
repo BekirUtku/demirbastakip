@@ -69,7 +69,7 @@ export default function PersonnelPage() {
         api.get<Record<string, unknown>[]>('/signature-locations').catch(() => ({ data: [] as Record<string, unknown>[] })),
         api.get<Record<string, unknown>[]>('/signature-assets').catch(() => ({ data: [] as Record<string, unknown>[] })),
       ]);
-      setPersonnel(pRes.data ?? []); setDepartments(dRes.data ?? []); setCompanies(cRes.data ?? []); setBranches(bRes.data ?? []); setLocations(lRes.data ?? []); setSigAssets(aRes.data ?? []);
+      setPersonnel(pRes.data ?? []); setDepartments(dRes.data ?? []); setCompanies(cRes.data ?? []); setBranches(bRes.data ?? []); setLocations(lRes.data ?? []); setSigAssets(Array.isArray(aRes.data) ? aRes.data : []);
     } catch { setError('VERİLER YÜKLENEMEDİ.'); }
     finally { setLoading(false); }
   };

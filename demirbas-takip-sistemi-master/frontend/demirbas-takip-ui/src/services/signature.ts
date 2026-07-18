@@ -534,7 +534,9 @@ export async function buildSignatureInner(
 
 /** Yüklenen görsellerden firmaya özel override üretir. */
 export function assetOverrides(assets: any[], company: CompanyKey): AssetOverride {
-  const forCo = (assets || []).filter((a) => a.company === company && a.isActive);
+  const forCo = (Array.isArray(assets) ? assets : []).filter(
+    (a) => a.company === company && a.isActive,
+  );
   const pick = (kind: string) =>
     forCo.filter((a) => a.kind === kind).sort((a, b) => a.sortOrder - b.sortOrder);
   const logo = pick('logo')[0];
