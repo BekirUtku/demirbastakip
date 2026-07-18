@@ -395,11 +395,18 @@ export default function EmailSignatures() {
     }
   };
 
+  const buildSingleInner = async (): Promise<string> => {
+    if (format === 'compact') {
+      const img = await renderCompactPng(fields);
+      return buildCompactHtml(fields, img);
+    }
+    const combined = await renderCombinedImage(fields, ov);
+    return buildSingleImageHtml(fields, combined);
+  };
   const handleCopySingle = async () => {
     setSingleBusy(true);
     try {
-      const combined = await renderCombinedImage(fields, ov);
-      const inner = buildSingleImageHtml(fields, combined);
+      const inner = await buildSingleInner();
       await copyHtmlToClipboard(inner);
       setSingleCopied(true);
       setTimeout(() => setSingleCopied(false), 2000);
@@ -413,8 +420,7 @@ export default function EmailSignatures() {
   const handleDownloadSingle = async () => {
     setSingleBusy(true);
     try {
-      const combined = await renderCombinedImage(fields, ov);
-      const inner = buildSingleImageHtml(fields, combined);
+      const inner = await buildSingleInner();
       const doc = `<html>\n<head>\n<meta charset="utf-8">\n<title>Imza</title>\n</head>\n<body style="margin:0;padding:0;">\n${inner}\n</body>\n</html>`;
       const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
