@@ -384,9 +384,8 @@ export default function EmailSignatures() {
       <Header title="Mail İmzaları" subtitle="Mail İmza Oluşturma ve Düzenleme" />
       <div className="main-content">
       <div className="row g-4">
-        <div className="col-lg-7">
-          {/* Düzenleme paneli */}
-          <div className="mb-4">
+        {/* ÜST: Düzenleme paneli */}
+        <div className="col-12 mb-4">
           <div className="card p-3">
             <div className="mb-3">
               <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
@@ -484,8 +483,8 @@ export default function EmailSignatures() {
           </div>
         </div>
 
-          {/* İmza görselleri yönetimi */}
-          <div className="mb-4">
+        {/* İmza görselleri yönetimi */}
+        <div className="col-12 mb-4">
           <div className="card p-3">
             <div
               className="d-flex justify-content-between align-items-center"
@@ -643,8 +642,8 @@ export default function EmailSignatures() {
           </div>
         </div>
 
-          {/* Toplu üretim */}
-          <div className="mb-4">
+        {/* Toplu üretim */}
+        <div className="col-12 mb-4">
           <div className="card p-3">
             <div
               className="d-flex justify-content-between align-items-center"
@@ -720,11 +719,8 @@ export default function EmailSignatures() {
           </div>
         </div>
 
-        </div>
-
-        {/* Canlı önizleme (sağ, sabit) */}
-        <div className="col-lg-5">
-          <div style={{ position: 'sticky', top: 16, maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}>
+        {/* ALT: Canlı önizleme */}
+        <div className="col-12">
           <div className="card p-3">
             <h5 className="mb-3">Canlı Önizleme</h5>
             <div
@@ -737,7 +733,6 @@ export default function EmailSignatures() {
               }}
               dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
-          </div>
           </div>
         </div>
       </div>
