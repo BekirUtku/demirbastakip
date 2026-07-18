@@ -628,27 +628,33 @@ export async function renderCombinedImage(
   const gapLogo = 16;
   const infoH = dispH(infoImg, info.width);
   const logoH = dispH(logoImg, logoA.width);
-  const infoX = logoA.width + gapLogo;
+  // Kaydırma (offset) = boşluk/itme olarak uygulanır; üst üste binmez.
+  const logoX = Math.max(0, logoA.ox);
+  const logoY = Math.max(0, logoA.oy);
+  const infoX = logoX + logoA.width + gapLogo;
   const row1W = infoX + info.width;
-  const row1H = Math.max(logoH, infoH);
-
-  const banners = bannerImgs.map((im, i) => ({
-    img: im,
-    w: bannersList[i].width,
-    h: dispH(im, bannersList[i].width),
-    ox: bannersList[i].ox,
-    oy: bannersList[i].oy,
-  }));
-  const efW = efat.width;
-  const efH = dispH(efatImg, efW);
-  let row2W = 0;
-  banners.forEach((b) => (row2W += b.w + 12));
-  row2W += 4 + efW;
-  const row2H = Math.max(0, ...banners.map((b) => b.h), efH);
+  const row1H = Math.max(logoY + logoH, infoH);
 
   const marginRow2 = 14;
-  const W = Math.ceil(Math.max(row1W, row2W));
-  const H = Math.ceil(row1H + (row2H > 0 ? marginRow2 + row2H : 0));
+  const y2 = row1H + marginRow2;
+  const row2: { img: HTMLImageElement | null; x: number; y: number; w: number; h: number }[] = [];
+  let x = 0;
+  bannerImgs.forEach((im, i) => {
+    const w = bannersList[i].width;
+    const h = dispH(im, w);
+    x += Math.max(0, bannersList[i].ox);
+    row2.push({ img: im, x, y: y2 + Math.max(0, bannersList[i].oy), w, h });
+    x += w + 12;
+  });
+  const efW = efat.width;
+  const efH = dispH(efatImg, efW);
+  x += 4 + Math.max(0, efat.ox);
+  row2.push({ img: efatImg, x, y: y2 + Math.max(0, efat.oy), w: efW, h: efH });
+  const row2Right = x + efW;
+  const row2Bottom = Math.max(y2, ...row2.map((r) => r.y + r.h));
+
+  const W = Math.ceil(Math.max(row1W, row2Right));
+  const H = Math.ceil(Math.max(row1H, row2Bottom));
 
   const cv = document.createElement('canvas');
   cv.width = Math.max(1, W * SC);
@@ -660,19 +666,10 @@ export async function renderCombinedImage(
   c.fillStyle = '#ffffff';
   c.fillRect(0, 0, W, H);
 
-  if (logoImg) c.drawImage(logoImg, logoA.ox, logoA.oy, logoA.width, logoH);
+  if (logoImg) c.drawImage(logoImg, logoX, logoY, logoA.width, logoH);
   if (infoImg) c.drawImage(infoImg, infoX, 0, info.width, infoH);
-
-  const y2 = row1H + marginRow2;
-  let x = 0;
-  for (const b of banners) {
-    if (b.img) c.drawImage(b.img, x + b.ox, y2 + b.oy, b.w, b.h);
-    x += b.w + 12;
-  }
-  x += 4;
-  if (efatImg) {
-    const ey = y2 + Math.max(0, (row2H - efH) / 2) + efat.oy;
-    c.drawImage(efatImg, x + efat.ox, ey, efW, efH);
+  for (const r of row2) {
+    if (r.img) c.drawImage(r.img, r.x, r.y, r.w, r.h);
   }
 
   return { url: cv.toDataURL('image/png'), width: W };
