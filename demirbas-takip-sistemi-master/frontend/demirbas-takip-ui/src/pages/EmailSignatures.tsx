@@ -24,6 +24,9 @@ export default function EmailSignatures() {
   const [assetsOpen, setAssetsOpen] = useState(false);
   const [assetCompany, setAssetCompany] = useState<CompanyKey>('lokum');
   const [uploadingKind, setUploadingKind] = useState<string | null>(null);
+  const [assetDraft, setAssetDraft] = useState<Record<number, { width?: number; offsetX?: number; offsetY?: number }>>({});
+  const [savingAssets, setSavingAssets] = useState(false);
+  const [assetsSaved, setAssetsSaved] = useState(false);
   const [selectedId, setSelectedId] = useState<number | ''>('');
 
   const [fields, setFields] = useState<SigFields>({
@@ -153,10 +156,26 @@ export default function EmailSignatures() {
     };
   }, [fields, format]);
 
-  const ov = useMemo(
-    () => assetOverrides(assets, fields.company),
-    [assets, fields.company],
+  const mergedAssets = useMemo(
+    () =>
+      assets.map((a) => {
+        const d = assetDraft[a.id];
+        return d
+          ? {
+              ...a,
+              width: d.width ?? a.width,
+              offsetX: d.offsetX ?? (a.offsetX || 0),
+              offsetY: d.offsetY ?? (a.offsetY || 0),
+            }
+          : a;
+      }),
+    [assets, assetDraft],
   );
+  const ov = useMemo(
+    () => assetOverrides(mergedAssets, fields.company),
+    [mergedAssets, fields.company],
+  );
+  const dirtyCount = Object.keys(assetDraft).length;
   const generatedHtml = useMemo(
     () =>
       format === 'compact'
@@ -248,15 +267,35 @@ export default function EmailSignatures() {
       await reloadAssets();
     } catch { alert('Durum güncellenemedi.'); }
   };
-  const changeAssetWidth = async (a: any, w: string) => {
-    const width = Number(w) || a.width;
-    if (width === a.width) return;
+  const setDraft = (id: number, key: 'width' | 'offsetX' | 'offsetY', v: string) =>
+    setAssetDraft((prev) => ({ ...prev, [id]: { ...prev[id], [key]: Number(v) || 0 } }));
+  const saveAssetDrafts = async () => {
+    const entries = Object.entries(assetDraft);
+    if (entries.length === 0) return;
+    setSavingAssets(true);
     try {
-      await api.put(`/signature-assets/${a.id}`, {
-        width, offsetX: a.offsetX || 0, offsetY: a.offsetY || 0, sortOrder: a.sortOrder, isActive: a.isActive,
-      });
+      await Promise.all(
+        entries.map(([id, d]) => {
+          const a = assets.find((x) => x.id === Number(id));
+          if (!a) return Promise.resolve();
+          return api.put(`/signature-assets/${id}`, {
+            width: d.width && d.width > 0 ? d.width : a.width,
+            offsetX: d.offsetX ?? (a.offsetX || 0),
+            offsetY: d.offsetY ?? (a.offsetY || 0),
+            sortOrder: a.sortOrder,
+            isActive: a.isActive,
+          });
+        }),
+      );
+      setAssetDraft({});
       await reloadAssets();
-    } catch { /* yoksay */ }
+      setAssetsSaved(true);
+      setTimeout(() => setAssetsSaved(false), 2000);
+    } catch {
+      alert('Değişiklikler kaydedilemedi.');
+    } finally {
+      setSavingAssets(false);
+    }
   };
   const deleteAsset = async (id: number) => {
     if (!window.confirm('Bu görsel silinsin mi?')) return;
@@ -280,21 +319,6 @@ export default function EmailSignatures() {
       ]);
       await reloadAssets();
     } catch { alert('Sıra değiştirilemedi.'); }
-  };
-  const changeAssetOffset = async (a: any, axis: 'x' | 'y', v: string) => {
-    const val = Number(v) || 0;
-    if (axis === 'x' && val === (a.offsetX || 0)) return;
-    if (axis === 'y' && val === (a.offsetY || 0)) return;
-    try {
-      await api.put(`/signature-assets/${a.id}`, {
-        width: a.width,
-        offsetX: axis === 'x' ? val : (a.offsetX || 0),
-        offsetY: axis === 'y' ? val : (a.offsetY || 0),
-        sortOrder: a.sortOrder,
-        isActive: a.isActive,
-      });
-      await reloadAssets();
-    } catch { /* yoksay */ }
   };
 
   const buildDoc = async (flds: SigFields): Promise<string> => {
@@ -515,6 +539,24 @@ export default function EmailSignatures() {
                   ))}
                 </div>
 
+                <div
+                  className="d-flex justify-content-between align-items-center mb-3 p-2"
+                  style={{ background: dirtyCount ? '#fff7ed' : '#f8f9fa', borderRadius: 6 }}
+                >
+                  <span style={{ fontSize: 11, color: dirtyCount ? '#b45309' : 'var(--text-muted)' }}>
+                    {dirtyCount
+                      ? `${dirtyCount} görselde kaydedilmemiş değişiklik`
+                      : 'Boyut/konum değişikliklerini Kaydet ile uygula'}
+                  </span>
+                  <button
+                    className={`btn btn-sm ${assetsSaved ? 'btn-outline-success' : 'btn-success'}`}
+                    disabled={savingAssets || dirtyCount === 0}
+                    onClick={saveAssetDrafts}
+                  >
+                    {savingAssets ? 'Kaydediliyor…' : assetsSaved ? '✓ Kaydedildi' : '💾 Kaydet'}
+                  </button>
+                </div>
+
                 {([['logo', 'LOGO'], ['banner', "BANNER'LAR"], ['efatura', 'E-FATURA']] as [string, string][]).map(
                   ([kind, label]) => {
                     const list = assets.filter(
@@ -600,10 +642,10 @@ export default function EmailSignatures() {
                                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gen.</span>
                                   <input
                                     type="number"
-                                    defaultValue={a.width}
+                                    value={assetDraft[a.id]?.width ?? a.width}
                                     className="form-control form-control-sm"
                                     style={{ fontSize: 11, padding: '1px 4px', height: 24, width: 70 }}
-                                    onBlur={(e) => changeAssetWidth(a, e.target.value)}
+                                    onChange={(e) => setDraft(a.id, 'width', e.target.value)}
                                   />
                                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>px</span>
                                 </div>
@@ -611,20 +653,20 @@ export default function EmailSignatures() {
                                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>↔</span>
                                   <input
                                     type="number"
-                                    defaultValue={a.offsetX || 0}
+                                    value={assetDraft[a.id]?.offsetX ?? (a.offsetX || 0)}
                                     className="form-control form-control-sm"
                                     style={{ fontSize: 11, padding: '1px 4px', height: 24, width: 54 }}
                                     title="Yatay kaydır (+sağ / -sol)"
-                                    onBlur={(e) => changeAssetOffset(a, 'x', e.target.value)}
+                                    onChange={(e) => setDraft(a.id, 'offsetX', e.target.value)}
                                   />
                                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>↕</span>
                                   <input
                                     type="number"
-                                    defaultValue={a.offsetY || 0}
+                                    value={assetDraft[a.id]?.offsetY ?? (a.offsetY || 0)}
                                     className="form-control form-control-sm"
                                     style={{ fontSize: 11, padding: '1px 4px', height: 24, width: 54 }}
                                     title="Dikey kaydır (+aşağı / -yukarı)"
-                                    onBlur={(e) => changeAssetOffset(a, 'y', e.target.value)}
+                                    onChange={(e) => setDraft(a.id, 'offsetY', e.target.value)}
                                   />
                                 </div>
                               </div>
