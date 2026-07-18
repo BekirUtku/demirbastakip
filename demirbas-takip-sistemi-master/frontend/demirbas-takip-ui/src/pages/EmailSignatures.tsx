@@ -12,9 +12,24 @@ import {
   renderCompactPng,
   embedImages,
   assetOverrides,
+  getSignatureStyle,
+  setSignatureStyle,
   type CompanyKey,
   type SigFields,
+  type SigStyle,
 } from '../services/signature';
+
+const FONT_OPTIONS: [string, string][] = [
+  ["'Times New Roman', Times, serif", 'Times New Roman'],
+  ['Arial, Helvetica, sans-serif', 'Arial'],
+  ['Calibri, sans-serif', 'Calibri'],
+  ["'Segoe UI', Tahoma, sans-serif", 'Segoe UI'],
+  ['Tahoma, sans-serif', 'Tahoma'],
+  ['Verdana, Geneva, sans-serif', 'Verdana'],
+  ['Georgia, serif', 'Georgia'],
+  ["'Trebuchet MS', sans-serif", 'Trebuchet MS'],
+  ["'Courier New', monospace", 'Courier New'],
+];
 
 export default function EmailSignatures() {
   const [personnel, setPersonnel] = useState<any[]>([]);
@@ -49,6 +64,7 @@ export default function EmailSignatures() {
   const [rawMode, setRawMode] = useState(false);
   const [fieldsOpen, setFieldsOpen] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
+  const [sigStyle, setSigStyle] = useState<SigStyle>(getSignatureStyle());
   const [rawHtml, setRawHtml] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -76,6 +92,11 @@ export default function EmailSignatures() {
     })();
   }, []);
 
+  const applyStyle = (patch: Partial<SigStyle>) => {
+    const ns = { ...sigStyle, ...patch };
+    setSigStyle(ns);
+    setSignatureStyle(ns);
+  };
   const set = (k: keyof SigFields, v: string) =>
     setFields((prev) => ({ ...prev, [k]: v }));
 
@@ -154,7 +175,7 @@ export default function EmailSignatures() {
     return () => {
       cancelled = true;
     };
-  }, [fields, format]);
+  }, [fields, format, sigStyle]);
 
   const mergedAssets = useMemo(
     () =>
@@ -181,7 +202,7 @@ export default function EmailSignatures() {
       format === 'compact'
         ? buildCompactHtml(fields, personImg ?? undefined)
         : buildSignatureHtml(fields, personImg ?? undefined, ov),
-    [fields, personImg, format, ov],
+    [fields, personImg, format, ov, sigStyle],
   );
   const previewHtml = rawMode ? rawHtml : generatedHtml;
 
@@ -450,6 +471,34 @@ export default function EmailSignatures() {
                     {label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
+                YAZI STİLİ
+              </label>
+              <div className="d-flex gap-2 align-items-center">
+                <select
+                  className="form-select form-select-sm"
+                  value={sigStyle.font}
+                  onChange={(e) => applyStyle({ font: e.target.value })}
+                >
+                  {FONT_OPTIONS.map(([val, label]) => (
+                    <option key={label} value={val}>{label}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: 74 }}
+                  min={6}
+                  max={20}
+                  value={sigStyle.size}
+                  onChange={(e) => applyStyle({ size: Number(e.target.value) || 9 })}
+                  title="Punto"
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>pt</span>
               </div>
             </div>
 

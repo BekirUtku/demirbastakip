@@ -87,6 +87,37 @@ export interface SigFields {
   website: string;
 }
 
+const STYLE_KEY = 'signatureStyle';
+export interface SigStyle {
+  font: string;
+  size: number;
+}
+const DEFAULT_STYLE: SigStyle = {
+  font: "'Times New Roman', Times, serif",
+  size: 9,
+};
+let STYLE: SigStyle = (() => {
+  try {
+    const r =
+      typeof localStorage !== 'undefined' ? localStorage.getItem(STYLE_KEY) : null;
+    if (r) return { ...DEFAULT_STYLE, ...JSON.parse(r) };
+  } catch {
+    /* yoksay */
+  }
+  return { ...DEFAULT_STYLE };
+})();
+export function getSignatureStyle(): SigStyle {
+  return STYLE;
+}
+export function setSignatureStyle(s: Partial<SigStyle>): void {
+  STYLE = { ...STYLE, ...s };
+  try {
+    localStorage.setItem(STYLE_KEY, JSON.stringify(STYLE));
+  } catch {
+    /* yoksay */
+  }
+}
+
 const esc = (s: string) =>
   (s ?? '')
     .replace(/&/g, '&amp;')
@@ -119,11 +150,11 @@ export function buildCompactHtml(
 ): string {
   const body = img
     ? `<img src="${img.url}" width="${img.width}" alt="İmza" style="display:block;border:none;" />`
-    : `<div style="font-size:10pt;font-weight:bold;">${esc(f.fullName)}</div>
+    : `<div style="font-size:${STYLE.size + 1}pt;font-weight:bold;">${esc(f.fullName)}</div>
   ${f.title ? `<div>${esc(f.title)}</div>` : ''}
   ${f.englishTitle ? `<div>${esc(f.englishTitle)}</div>` : ''}
   ${f.companyName ? `<div style="font-weight:bold;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}`;
-  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;">
+  return `<div style="font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;">
   <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
   ${body}
 </div>`;
@@ -170,10 +201,10 @@ export function buildSignatureHtml(
         ${f.website ? `<div style="margin-top:2px;"><a href="${esc(websiteHref)}" style="color:#000000;text-decoration:none;">${esc(f.website)}</a></div>` : ''}
       </td>`;
 
-  return `<div style="font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
+  return `<div style="font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
   <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
 
-  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;font-family:'Times New Roman', Times, serif;">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;font-family:${STYLE.font};">
     <tr>
       <td style="vertical-align:${p.logoValign};padding-right:16px;">
         <img src="${logoA.url}" width="${logoA.width}" alt="${esc(p.label)}" style="display:block;border:none;margin:${logoA.oy}px 0 0 ${logoA.ox}px;" />
@@ -188,7 +219,7 @@ export function buildSignatureHtml(
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
     <tr>
-      <td style="border:1px solid #000000;padding:8px;font-family:'Times New Roman', Times, serif;font-size:9pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
+      <td style="border:1px solid #000000;padding:8px;font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
         <b>YASAL UYARI</b><br />${discTr}<br /><br />
         <b>DISCLAIMER</b><br />${discEn}
       </td>
@@ -245,7 +276,7 @@ export async function renderPersonnelPng(
   f: SigFields,
 ): Promise<{ url: string; width: number }> {
   const scale = 3;
-  const F = 12 * scale; // 9pt
+  const F = Math.round((STYLE.size * 4) / 3) * scale; // pt -> px
   const lh = Math.round(F * 1.42);
   const pad = 8 * scale;
   const divGap = 16 * scale;
@@ -253,8 +284,8 @@ export async function renderPersonnelPng(
   const iconGap = Math.round(6 * scale);
   const gapH = Math.round(4 * scale);
   const maxCol = 250 * scale; // her sütun için maksimum metin genişliği (uzunsa alta iner)
-  const fontReg = `${F}px "Times New Roman", Times, serif`;
-  const fontBold = `bold ${F}px "Times New Roman", Times, serif`;
+  const fontReg = `${F}px ${STYLE.font}`;
+  const fontBold = `bold ${F}px ${STYLE.font}`;
 
   const [icLoc, icPhone, icMob] = await Promise.all([
     loadIcon('/logos/icon_location.png'),
@@ -402,14 +433,14 @@ export async function renderCompactPng(
   f: SigFields,
 ): Promise<{ url: string; width: number }> {
   const scale = 3;
-  const F = 12 * scale; // 9pt
-  const Fname = Math.round((F * 10) / 9); // 10pt
+  const F = Math.round((STYLE.size * 4) / 3) * scale; // pt -> px
+  const Fname = Math.round((F * (STYLE.size + 1)) / STYLE.size);
   const lh = Math.round(F * 1.42);
   const lhName = Math.round(Fname * 1.42);
   const pad = 8 * scale;
-  const reg = `${F}px "Times New Roman", Times, serif`;
-  const bold = `bold ${F}px "Times New Roman", Times, serif`;
-  const boldName = `bold ${Fname}px "Times New Roman", Times, serif`;
+  const reg = `${F}px ${STYLE.font}`;
+  const bold = `bold ${F}px ${STYLE.font}`;
+  const boldName = `bold ${Fname}px ${STYLE.font}`;
 
   type L = { t: string; font: string; lh: number };
   const lines: L[] = [{ t: f.fullName, font: boldName, lh: lhName }];
