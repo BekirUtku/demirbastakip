@@ -324,5 +324,36 @@ Sevdiklerinle birlikte nice mutlu seneler geçirmeniz dileğiyle,
 
             await context.SaveChangesAsync();
         }
+
+        // İmza görselleri: mevcut varsayılan logo/banner/e-fatura'yı yönetime ekle
+        var defaultAssets = new (string Company, string Kind, string Path, int Width, int Order, string Name)[]
+        {
+            ("lokum", "logo",    "/logos/lokum_atolyesi_imza.png",      110, 0, "Lokum Logo"),
+            ("lokum", "banner",  "/logos/Paylaştıkça_Bereketlenir.png", 220, 1, "Paylaştıkça Bereketlenir"),
+            ("lokum", "banner",  "/logos/Su_Verimliliği.png",           220, 2, "Su Verimliliği"),
+            ("lokum", "efatura", "/logos/E-Fatura.png",                 130, 0, "E-Fatura"),
+            ("ogas",  "logo",    "/logos/ogas.png",                     150, 0, "OGAŞ Logo"),
+            ("ogas",  "banner",  "/logos/Su_Verimliliği.png",           220, 1, "Su Verimliliği"),
+            ("ogas",  "efatura", "/logos/E-Fatura.png",                 130, 0, "E-Fatura"),
+        };
+        foreach (var d in defaultAssets)
+        {
+            var exists = await context.SignatureAssets.AnyAsync(
+                a => a.Company == d.Company && a.Kind == d.Kind && a.FileName == d.Path);
+            if (!exists)
+            {
+                context.SignatureAssets.Add(new SignatureAsset
+                {
+                    Company = d.Company,
+                    Kind = d.Kind,
+                    FileName = d.Path,
+                    OriginalName = d.Name,
+                    Width = d.Width,
+                    SortOrder = d.Order,
+                    IsActive = true,
+                });
+            }
+        }
+        await context.SaveChangesAsync();
     }
 }

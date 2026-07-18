@@ -33,7 +33,7 @@ public class SignatureAssetService : ISignatureAssetService
         Id = a.Id,
         Company = a.Company,
         Kind = a.Kind,
-        Url = $"/{UploadDir}/{a.FileName}",
+        Url = a.FileName.StartsWith("/") ? a.FileName : $"/{UploadDir}/{a.FileName}",
         OriginalName = a.OriginalName,
         Width = a.Width,
         OffsetX = a.OffsetX,
@@ -113,14 +113,17 @@ public class SignatureAssetService : ISignatureAssetService
         var asset = await _context.SignatureAssets.FindAsync(id);
         if (asset == null) return false;
 
-        try
+        if (!asset.FileName.StartsWith("/"))
         {
-            var webroot = _env.WebRootPath
-                ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            var full = Path.Combine(webroot, "signatures", "uploads", asset.FileName);
-            if (File.Exists(full)) File.Delete(full);
+            try
+            {
+                var webroot = _env.WebRootPath
+                    ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var full = Path.Combine(webroot, "signatures", "uploads", asset.FileName);
+                if (File.Exists(full)) File.Delete(full);
+            }
+            catch { /* dosya silinemezse kaydı yine de sil */ }
         }
-        catch { /* dosya silinemezse kaydı yine de sil */ }
 
         _context.SignatureAssets.Remove(asset);
         await _context.SaveChangesAsync();
