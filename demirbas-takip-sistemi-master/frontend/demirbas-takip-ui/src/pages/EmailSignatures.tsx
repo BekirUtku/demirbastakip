@@ -46,6 +46,7 @@ export default function EmailSignatures() {
   const [assetDraft, setAssetDraft] = useState<Record<number, { width?: number; offsetX?: number; offsetY?: number }>>({});
   const [savingAssets, setSavingAssets] = useState(false);
   const [assetsSaved, setAssetsSaved] = useState(false);
+  const [assetNatural, setAssetNatural] = useState<Record<number, { w: number; h: number }>>({});
   const [selectedId, setSelectedId] = useState<number | ''>('');
 
   const [fields, setFields] = useState<SigFields>({
@@ -798,8 +799,42 @@ export default function EmailSignatures() {
                                     opacity: a.isActive ? 1 : 0.4,
                                   }}
                                 >
-                                  <img src={a.url} alt={a.originalName} style={{ maxWidth: '100%', maxHeight: 44 }} />
+                                  <img
+                                    src={a.url}
+                                    alt={a.originalName}
+                                    style={{ maxWidth: '100%', maxHeight: 44 }}
+                                    onLoad={(e) => {
+                                      const im = e.currentTarget;
+                                      setAssetNatural((prev) =>
+                                        prev[a.id]?.w === im.naturalWidth
+                                          ? prev
+                                          : { ...prev, [a.id]: { w: im.naturalWidth, h: im.naturalHeight } },
+                                      );
+                                    }}
+                                  />
                                 </div>
+                                {assetNatural[a.id] && (
+                                  <div
+                                    style={{
+                                      fontSize: 10,
+                                      marginTop: 2,
+                                      color:
+                                        assetNatural[a.id].w < a.width * 3
+                                          ? '#b45309'
+                                          : 'var(--text-muted)',
+                                    }}
+                                    title={
+                                      assetNatural[a.id].w < a.width * 3
+                                        ? `Düşük çözünürlük. Outlook'ta net görünmesi için en az ${a.width * 3}px genişlik önerilir (ideal: ${a.width * 8}px).`
+                                        : 'Çözünürlük yeterli'
+                                    }
+                                  >
+                                    {assetNatural[a.id].w}×{assetNatural[a.id].h}
+                                    {assetNatural[a.id].w < a.width * 3
+                                      ? ` ⚠ düşük (≥${a.width * 3}px)`
+                                      : ' ✓'}
+                                  </div>
+                                )}
                                 <div className="d-flex align-items-center gap-1 mt-1">
                                   <button
                                     className="action-btn"

@@ -277,7 +277,7 @@ function loadIcon(src: string): Promise<HTMLImageElement | null> {
 export async function renderPersonnelPng(
   f: SigFields,
 ): Promise<{ url: string; width: number }> {
-  const scale = 2;
+  const scale = 4; // yüksek DPI: metin 4x render edilir, HTML'de width ile küçültülür
   const F = Math.round((STYLE.size * 4) / 3) * scale; // pt -> px
   const lh = Math.round(F * 1.42);
   const pad = 8 * scale;
@@ -434,7 +434,7 @@ export async function renderPersonnelPng(
 export async function renderCompactPng(
   f: SigFields,
 ): Promise<{ url: string; width: number }> {
-  const scale = 2;
+  const scale = 4; // yüksek DPI: metin 4x render edilir, HTML'de width ile küçültülür
   const F = Math.round((STYLE.size * 4) / 3) * scale; // pt -> px
   const Fname = Math.round((F * (STYLE.size + 1)) / STYLE.size);
   const lh = Math.round(F * 1.42);
@@ -609,7 +609,6 @@ export async function renderCombinedImage(
   fields: SigFields,
   ov?: AssetOverride,
 ): Promise<{ url: string; width: number }> {
-  const SC = 2;
   const p = PRESETS[fields.company];
   const logoA = ov?.logo ?? { url: p.logo, width: p.logoWidth, ox: 0, oy: 0 };
   const bannersList =
@@ -626,6 +625,17 @@ export async function renderCombinedImage(
 
   const dispH = (img: HTMLImageElement | null, w: number) =>
     img && img.naturalWidth ? (img.naturalHeight * w) / img.naturalWidth : 0;
+
+  // Ölçek: hiçbir kaynak görsel küçültülmesin (downsample yok).
+  // Her görselin (doğal genişlik / gösterim genişliği) oranının en büyüğü alınır.
+  const ratios: number[] = [2];
+  if (infoImg?.naturalWidth) ratios.push(infoImg.naturalWidth / info.width);
+  if (logoImg?.naturalWidth) ratios.push(logoImg.naturalWidth / logoA.width);
+  bannerImgs.forEach((im, i) => {
+    if (im?.naturalWidth) ratios.push(im.naturalWidth / bannersList[i].width);
+  });
+  if (efatImg?.naturalWidth) ratios.push(efatImg.naturalWidth / efat.width);
+  const SC = Math.min(8, Math.max(3, Math.ceil(Math.max(...ratios))));
 
   const gapLogo = 16;
   const infoH = dispH(infoImg, info.width);
