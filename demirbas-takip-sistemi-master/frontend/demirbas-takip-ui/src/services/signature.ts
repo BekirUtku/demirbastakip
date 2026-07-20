@@ -91,10 +91,12 @@ const STYLE_KEY = 'signatureStyle';
 export interface SigStyle {
   font: string;
   size: number;
+  discSize: number;
 }
 const DEFAULT_STYLE: SigStyle = {
   font: "'Times New Roman', Times, serif",
   size: 9,
+  discSize: 7,
 };
 let STYLE: SigStyle = (() => {
   try {
@@ -219,7 +221,7 @@ export function buildSignatureHtml(
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
     <tr>
-      <td style="border:1px solid #000000;padding:8px;font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
+      <td style="border:1px solid #000000;padding:8px;font-family:${STYLE.font};font-size:${STYLE.discSize}pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
         <b>YASAL UYARI</b><br />${discTr}<br /><br />
         <b>DISCLAIMER</b><br />${discEn}
       </td>
@@ -690,7 +692,7 @@ export function buildSingleImageHtml(
   <img src="${combined.url}" width="${combined.width}" alt="İmza" style="display:block;border:none;" />
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
     <tr>
-      <td style="border:1px solid #000000;padding:8px;font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
+      <td style="border:1px solid #000000;padding:8px;font-family:${STYLE.font};font-size:${STYLE.discSize}pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
         <b>YASAL UYARI</b><br />${discTr}<br /><br />
         <b>DISCLAIMER</b><br />${discEn}
       </td>

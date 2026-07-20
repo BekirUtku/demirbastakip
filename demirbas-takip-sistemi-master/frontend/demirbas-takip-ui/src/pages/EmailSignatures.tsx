@@ -598,6 +598,22 @@ export default function EmailSignatures() {
                 />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>pt</span>
               </div>
+              <div className="d-flex gap-2 align-items-center mt-2">
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Yasal uyarı puntosu
+                </span>
+                <input
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: 74 }}
+                  min={5}
+                  max={20}
+                  value={sigStyle.discSize}
+                  onChange={(e) => applyStyle({ discSize: Number(e.target.value) || 7 })}
+                  title="YASAL UYARI / DISCLAIMER puntosu"
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>pt</span>
+              </div>
             </div>
 
             <div className="d-flex justify-content-between align-items-center mb-2">
