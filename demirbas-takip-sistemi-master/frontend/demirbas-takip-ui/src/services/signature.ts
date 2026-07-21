@@ -22,7 +22,6 @@ const LOKUM_LEGAL =
   '“LOKUM ATÖLYESİ ŞEKERLEME GIDA TURİZM İNŞ. HAYV. SAN. VE TİC. A.Ş. (LOKUM ATÖLYESİ)”';
 const OGAS_LEGAL =
   'OGAŞ ŞEKERLEME GIDA TURİZM SANAYİ TİCARET A.Ş. (OGAŞ)';
-// TR metinde ilk geçiş: kapanış tırnağı ve (LOKUM ATÖLYESİ) yok
 const LOKUM_LEGAL_FIRST =
   '“LOKUM ATÖLYESİ ŞEKERLEME GIDA TURİZM İNŞ. HAYV. SAN. VE TİC. A.Ş.';
 
@@ -87,16 +86,33 @@ export interface SigFields {
   website: string;
 }
 
+/** Punto ayarı yapılabilen alanlar. */
+export type FieldKey =
+  | 'greeting'
+  | 'fullName'
+  | 'title'
+  | 'englishTitle'
+  | 'companyName'
+  | 'city'
+  | 'addressLine1'
+  | 'addressLine2'
+  | 'phone'
+  | 'mobile'
+  | 'website';
+
 const STYLE_KEY = 'signatureStyle';
 export interface SigStyle {
   font: string;
   size: number;
   discSize: number;
+  /** Alan bazlı özel punto (pt). Verilmezse genel `size` kullanılır. */
+  fieldSizes?: Partial<Record<FieldKey, number>>;
 }
 const DEFAULT_STYLE: SigStyle = {
   font: "'Times New Roman', Times, serif",
   size: 9,
   discSize: 7,
+  fieldSizes: {},
 };
 let STYLE: SigStyle = (() => {
   try {
@@ -120,15 +136,18 @@ export function setSignatureStyle(s: Partial<SigStyle>): void {
   }
 }
 
+/** Bir alanın efektif puntosunu döndürür (özel yoksa genel). */
+const sz = (k: FieldKey): number => STYLE.fieldSizes?.[k] ?? STYLE.size;
+
 const esc = (s: string) =>
   (s ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-const row = (label: string, value: string) =>
+const row = (label: string, value: string, fontSize?: number) =>
   value
-    ? `<div style="margin:1px 0;">${label ? `<span>${esc(label)}</span> ` : ''}${esc(value)}</div>`
+    ? `<div style="margin:1px 0;${fontSize ? `font-size:${fontSize}pt;` : ''}">${label ? `<span>${esc(label)}</span> ` : ''}${esc(value)}</div>`
     : '';
 
 /** Metindeki firma ünvanlarını (önemli yerleri) kalın yapar. */
@@ -144,20 +163,20 @@ function boldNames(text: string, names: string[]): string {
   return out;
 }
 
-/** Form alanlarından imza HTML'i üretir (görseller URL olarak). */
 /** Kısa imza: sadece selamlama + isim + unvan + İngilizce unvan + firma. */
 export function buildCompactHtml(
   f: SigFields,
   img?: { url: string; width: number },
 ): string {
+  const nameSize = STYLE.fieldSizes?.fullName ?? (STYLE.size + 1);
   const body = img
     ? `<img src="${img.url}" width="${img.width}" alt="İmza" style="display:block;border:none;" />`
-    : `<div style="font-size:${STYLE.size + 1}pt;font-weight:bold;">${esc(f.fullName)}</div>
-  ${f.title ? `<div>${esc(f.title)}</div>` : ''}
-  ${f.englishTitle ? `<div>${esc(f.englishTitle)}</div>` : ''}
-  ${f.companyName ? `<div style="font-weight:bold;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}`;
+    : `<div style="font-size:${nameSize}pt;font-weight:bold;">${esc(f.fullName)}</div>
+  ${f.title ? `<div style="font-size:${sz('title')}pt;">${esc(f.title)}</div>` : ''}
+  ${f.englishTitle ? `<div style="font-size:${sz('englishTitle')}pt;">${esc(f.englishTitle)}</div>` : ''}
+  ${f.companyName ? `<div style="font-size:${sz('companyName')}pt;font-weight:bold;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}`;
   return `<div style="font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;">
-  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
+  <p style="margin:0 0 14px 0;font-size:${sz('greeting')}pt;">${esc(f.greeting)}</p>
   ${body}
 </div>`;
 }
@@ -190,21 +209,21 @@ export function buildSignatureHtml(
   const infoCells = personImg
     ? `<td style="vertical-align:top;">${f.website ? `<a href="${websiteHref}" target="_blank" rel="noopener" style="text-decoration:none;border:none;">` : ''}<img src="${personImg.url}" width="${personImg.width}" alt="Personel Bilgileri" style="display:block;border:none;" />${f.website ? '</a>' : ''}</td>`
     : `<td style="vertical-align:top;padding:2px 16px 2px 0;word-break:break-word;overflow-wrap:break-word;">
-        <div style="font-weight:bold;">${esc(f.fullName)}</div>
-        ${f.title ? `<div>${esc(f.title)}</div>` : ''}
-        ${f.englishTitle ? `<div>${esc(f.englishTitle)}</div>` : ''}
-        ${f.companyName ? `<div style="font-weight:bold;margin-top:4px;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}
+        <div style="font-size:${sz('fullName')}pt;font-weight:bold;">${esc(f.fullName)}</div>
+        ${f.title ? `<div style="font-size:${sz('title')}pt;">${esc(f.title)}</div>` : ''}
+        ${f.englishTitle ? `<div style="font-size:${sz('englishTitle')}pt;">${esc(f.englishTitle)}</div>` : ''}
+        ${f.companyName ? `<div style="font-size:${sz('companyName')}pt;font-weight:bold;margin-top:4px;">${esc(f.companyName).replace(/\n/g, '<br />')}</div>` : ''}
       </td>
       <td style="vertical-align:top;border-left:1px solid #cccccc;padding:2px 0 2px 16px;word-break:break-word;overflow-wrap:break-word;">
-        ${f.city ? `<div style="font-weight:bold;margin-bottom:2px;">${esc(f.city)}</div>` : ''}
-        ${row('Adres:', f.addressLine1)}
-        ${row('', f.addressLine2)}
-        ${row('Sabit:', f.phone)}
-        ${f.website ? `<div style="margin-top:2px;"><a href="${esc(websiteHref)}" style="color:#000000;text-decoration:none;">${esc(f.website)}</a></div>` : ''}
+        ${f.city ? `<div style="font-size:${sz('city')}pt;font-weight:bold;margin-bottom:2px;">${esc(f.city)}</div>` : ''}
+        ${row('Adres:', f.addressLine1, sz('addressLine1'))}
+        ${row('', f.addressLine2, sz('addressLine2'))}
+        ${row('Sabit:', f.phone, sz('phone'))}
+        ${f.website ? `<div style="margin-top:2px;font-size:${sz('website')}pt;"><a href="${esc(websiteHref)}" style="color:#000000;text-decoration:none;">${esc(f.website)}</a></div>` : ''}
       </td>`;
 
   return `<div style="font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
-  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
+  <p style="margin:0 0 14px 0;font-size:${sz('greeting')}pt;">${esc(f.greeting)}</p>
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;font-family:${STYLE.font};">
     <tr>
@@ -263,7 +282,6 @@ export async function embedImages(html: string): Promise<string> {
 /*  Bileşen                                                          */
 /* ------------------------------------------------------------------ */
 
-/** İkon görselini yükler (yüklenemezse null). */
 function loadIcon(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const im = new Image();
@@ -273,21 +291,27 @@ function loadIcon(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-/** Kişi bilgisi bölümünü tarayıcıda Canvas ile PNG'ye çizer (base64 döner). */
+/** Kişi bilgisi bölümünü Canvas ile PNG'ye çizer (alan bazlı puntoyu uygular). */
 export async function renderPersonnelPng(
   f: SigFields,
 ): Promise<{ url: string; width: number }> {
-  const scale = 4; // yüksek DPI: metin 4x render edilir, HTML'de width ile küçültülür
-  const F = Math.round((STYLE.size * 4) / 3) * scale; // pt -> px
-  const lh = Math.round(F * 1.42);
+  const scale = 4;
+  const px = (pt: number) => Math.round((pt * 4) / 3) * scale; // pt -> ölçekli px
+  const lhOf = (pxSize: number) => Math.round(pxSize * 1.42);
+  const fontOf = (pt: number, bold: boolean) => {
+    const p = px(pt);
+    return {
+      font: `${bold ? 'bold ' : ''}${p}px ${STYLE.font}`,
+      fSize: p,
+      lh: lhOf(p),
+    };
+  };
+
   const pad = 8 * scale;
   const divGap = 16 * scale;
-  const iconSize = Math.round(F * 1.25);
   const iconGap = Math.round(6 * scale);
   const gapH = Math.round(4 * scale);
-  const maxCol = 250 * scale; // her sütun için maksimum metin genişliği (uzunsa alta iner)
-  const fontReg = `${F}px ${STYLE.font}`;
-  const fontBold = `bold ${F}px ${STYLE.font}`;
+  const maxCol = 250 * scale;
 
   const [icLoc, icPhone, icMob] = await Promise.all([
     loadIcon('/logos/icon_location.png'),
@@ -321,56 +345,97 @@ export async function renderPersonnelPng(
   type RL = {
     t: string;
     font: string;
+    fSize: number;
+    lh: number;
     offset: number;
     icon?: HTMLImageElement | null;
     gap?: boolean;
   };
 
-  // SOL sütun
-  const leftSrc: { t?: string; b?: boolean; gap?: boolean }[] = [
-    { t: f.fullName, b: true },
-  ];
-  if (f.title) leftSrc.push({ t: f.title });
-  if (f.englishTitle) leftSrc.push({ t: f.englishTitle });
+  // SOL sütun kaynak listesi
+  type LeftSrc =
+    | { key: FieldKey; text: string; bold?: boolean }
+    | { gap: true };
+  const leftSrc: LeftSrc[] = [{ key: 'fullName', text: f.fullName, bold: true }];
+  if (f.title) leftSrc.push({ key: 'title', text: f.title });
+  if (f.englishTitle) leftSrc.push({ key: 'englishTitle', text: f.englishTitle });
   leftSrc.push({ gap: true });
   (f.companyName || '').split('\n').forEach((ln) => {
-    if (ln) leftSrc.push({ t: ln, b: true });
+    if (ln) leftSrc.push({ key: 'companyName', text: ln, bold: true });
   });
+
   const leftRender: RL[] = [];
   for (const it of leftSrc) {
-    if (it.gap) {
-      leftRender.push({ t: '', font: fontReg, offset: 0, gap: true });
+    if ('gap' in it) {
+      leftRender.push({ t: '', font: '', fSize: 0, lh: gapH, offset: 0, gap: true });
       continue;
     }
-    const font = it.b ? fontBold : fontReg;
-    wrap(it.t as string, font, maxCol).forEach((sub) =>
-      leftRender.push({ t: sub, font, offset: 0 }),
+    const fo = fontOf(sz(it.key), it.bold || false);
+    wrap(it.text, fo.font, maxCol).forEach((sub) =>
+      leftRender.push({
+        t: sub,
+        font: fo.font,
+        fSize: fo.fSize,
+        lh: fo.lh,
+        offset: 0,
+      }),
     );
   }
 
-  // SAĞ sütun (ikonlu; uzun satırlar kaydırılır)
-  const rightSrc: {
-    t: string;
-    b?: boolean;
+  // SAĞ sütun kaynak listesi (ikonlu; uzun satırlar sarılır)
+  type RightSrc = {
+    key: FieldKey;
+    text: string;
+    bold?: boolean;
     icon?: HTMLImageElement | null;
     indent?: boolean;
-  }[] = [];
-  if (f.city) rightSrc.push({ t: f.city, b: true });
-  if (f.addressLine1)
-    rightSrc.push(icLoc ? { t: f.addressLine1, icon: icLoc } : { t: `Adres: ${f.addressLine1}` });
-  if (f.addressLine2)
-    rightSrc.push(icLoc ? { t: f.addressLine2, indent: true } : { t: f.addressLine2 });
-  if (f.phone)
-    rightSrc.push(icPhone ? { t: f.phone, icon: icPhone } : { t: `Sabit: ${f.phone}` });
-  if (f.mobile)
-    rightSrc.push(icMob ? { t: f.mobile, icon: icMob } : { t: `Telefon: ${f.mobile}` });
-  if (f.website) rightSrc.push({ t: f.website });
+  };
+  const rightSrc: RightSrc[] = [];
+  if (f.city) rightSrc.push({ key: 'city', text: f.city, bold: true });
+  if (f.addressLine1) {
+    rightSrc.push(
+      icLoc
+        ? { key: 'addressLine1', text: f.addressLine1, icon: icLoc }
+        : { key: 'addressLine1', text: `Adres: ${f.addressLine1}` },
+    );
+  }
+  if (f.addressLine2) {
+    rightSrc.push(
+      icLoc
+        ? { key: 'addressLine2', text: f.addressLine2, indent: true }
+        : { key: 'addressLine2', text: f.addressLine2 },
+    );
+  }
+  if (f.phone) {
+    rightSrc.push(
+      icPhone
+        ? { key: 'phone', text: f.phone, icon: icPhone }
+        : { key: 'phone', text: `Sabit: ${f.phone}` },
+    );
+  }
+  if (f.mobile) {
+    rightSrc.push(
+      icMob
+        ? { key: 'mobile', text: f.mobile, icon: icMob }
+        : { key: 'mobile', text: `Telefon: ${f.mobile}` },
+    );
+  }
+  if (f.website) rightSrc.push({ key: 'website', text: f.website });
+
   const rightRender: RL[] = [];
   for (const it of rightSrc) {
-    const font = it.b ? fontBold : fontReg;
+    const fo = fontOf(sz(it.key), it.bold || false);
+    const iconSize = Math.round(fo.fSize * 1.25);
     const offset = it.icon || it.indent ? iconSize + iconGap : 0;
-    wrap(it.t, font, maxCol - offset).forEach((sub, i) =>
-      rightRender.push({ t: sub, font, offset, icon: i === 0 ? it.icon : undefined }),
+    wrap(it.text, fo.font, maxCol - offset).forEach((sub, i) =>
+      rightRender.push({
+        t: sub,
+        font: fo.font,
+        fSize: fo.fSize,
+        lh: fo.lh,
+        offset,
+        icon: i === 0 ? it.icon : undefined,
+      }),
     );
   }
 
@@ -383,11 +448,22 @@ export async function renderPersonnelPng(
   const colH = (arr: RL[]) => {
     let y = pad;
     arr.forEach((r) => {
-      y += r.gap ? gapH : lh;
+      y += r.lh;
     });
     return y;
   };
   const H = Math.ceil(Math.max(colH(leftRender), colH(rightRender)) + pad);
+
+  // Ayırıcı çizginin bittiği nokta: son metnin görsel altına yaklaşık
+  const lastNonGap = (arr: RL[]): RL | null => {
+    for (let i = arr.length - 1; i >= 0; i--) if (!arr[i].gap) return arr[i];
+    return null;
+  };
+  const lastL = lastNonGap(leftRender);
+  const lastR = lastNonGap(rightRender);
+  const leftBot = colH(leftRender) - (lastL ? lastL.lh - lastL.fSize : 0);
+  const rightBot = colH(rightRender) - (lastR ? lastR.lh - lastR.fSize : 0);
+  const divBottom = Math.max(leftBot, rightBot);
 
   cv.width = W;
   cv.height = H;
@@ -399,16 +475,15 @@ export async function renderPersonnelPng(
   let y = pad;
   for (const r of leftRender) {
     if (r.gap) {
-      y += gapH;
+      y += r.lh;
       continue;
     }
     c.fillStyle = '#000000';
     c.font = r.font;
     c.fillText(r.t, pad, y);
-    y += lh;
+    y += r.lh;
   }
 
-  const divBottom = Math.max(colH(leftRender), colH(rightRender)) - lh + F;
   c.strokeStyle = '#cccccc';
   c.lineWidth = Math.max(1, Math.floor(scale / 2));
   c.beginPath();
@@ -419,37 +494,51 @@ export async function renderPersonnelPng(
   y = pad;
   for (const r of rightRender) {
     if (r.icon) {
-      c.drawImage(r.icon, rightX, y + Math.round((F - iconSize) / 2), iconSize, iconSize);
+      const iconSize = Math.round(r.fSize * 1.25);
+      c.drawImage(
+        r.icon,
+        rightX,
+        y + Math.round((r.fSize - iconSize) / 2),
+        iconSize,
+        iconSize,
+      );
     }
     c.fillStyle = '#000000';
     c.font = r.font;
     c.fillText(r.t, rightX + r.offset, y);
-    y += lh;
+    y += r.lh;
   }
 
   return { url: cv.toDataURL('image/png'), width: Math.round(W / scale) };
 }
 
-/** Kısa imza bloğunu Canvas ile PNG'ye çizer (tek sütun). */
+/** Kısa imza bloğunu Canvas ile PNG'ye çizer (alan bazlı puntoyu uygular). */
 export async function renderCompactPng(
   f: SigFields,
 ): Promise<{ url: string; width: number }> {
-  const scale = 4; // yüksek DPI: metin 4x render edilir, HTML'de width ile küçültülür
-  const F = Math.round((STYLE.size * 4) / 3) * scale; // pt -> px
-  const Fname = Math.round((F * (STYLE.size + 1)) / STYLE.size);
-  const lh = Math.round(F * 1.42);
-  const lhName = Math.round(Fname * 1.42);
+  const scale = 4;
+  const px = (pt: number) => Math.round((pt * 4) / 3) * scale;
+  const lhOf = (pxSize: number) => Math.round(pxSize * 1.42);
+  const fontOf = (pt: number, bold: boolean) => {
+    const p = px(pt);
+    return {
+      font: `${bold ? 'bold ' : ''}${p}px ${STYLE.font}`,
+      lh: lhOf(p),
+    };
+  };
   const pad = 8 * scale;
-  const reg = `${F}px ${STYLE.font}`;
-  const bold = `bold ${F}px ${STYLE.font}`;
-  const boldName = `bold ${Fname}px ${STYLE.font}`;
+
+  // fullName için özel: kullanıcı özel punto verdiyse onu kullan;
+  // aksi halde varsayılan davranış (genel puntonun 1pt üstü) korunur.
+  const nameSizePt = STYLE.fieldSizes?.fullName ?? (STYLE.size + 1);
 
   type L = { t: string; font: string; lh: number };
-  const lines: L[] = [{ t: f.fullName, font: boldName, lh: lhName }];
-  if (f.title) lines.push({ t: f.title, font: reg, lh });
-  if (f.englishTitle) lines.push({ t: f.englishTitle, font: reg, lh });
+  const lines: L[] = [];
+  { const fo = fontOf(nameSizePt, true); lines.push({ t: f.fullName, font: fo.font, lh: fo.lh }); }
+  if (f.title) { const fo = fontOf(sz('title'), false); lines.push({ t: f.title, font: fo.font, lh: fo.lh }); }
+  if (f.englishTitle) { const fo = fontOf(sz('englishTitle'), false); lines.push({ t: f.englishTitle, font: fo.font, lh: fo.lh }); }
   (f.companyName || '').split('\n').forEach((ln) => {
-    if (ln) lines.push({ t: ln, font: bold, lh });
+    if (ln) { const fo = fontOf(sz('companyName'), true); lines.push({ t: ln, font: fo.font, lh: fo.lh }); }
   });
 
   const cv = document.createElement('canvas');
@@ -461,9 +550,7 @@ export async function renderCompactPng(
   });
   const W = Math.ceil(maxW + pad * 2);
   let H = pad;
-  lines.forEach((l) => {
-    H += l.lh;
-  });
+  lines.forEach((l) => { H += l.lh; });
   H = Math.ceil(H + pad);
 
   cv.width = W;
@@ -594,7 +681,6 @@ export async function copyHtmlToClipboard(embedded: string): Promise<void> {
   ]);
 }
 
-/** Bir personel için imzayı üretip panoya kopyalar. */
 function loadAnyImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const im = new Image();
@@ -604,7 +690,7 @@ function loadAnyImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-/** Logo + kişi bilgisi + banner + e-fatura'yı TEK bir PNG'ye çizer (ek/attachment sorununu azaltır). */
+/** Logo + kişi bilgisi + banner + e-fatura'yı TEK bir PNG'ye çizer. */
 export async function renderCombinedImage(
   fields: SigFields,
   ov?: AssetOverride,
@@ -626,8 +712,6 @@ export async function renderCombinedImage(
   const dispH = (img: HTMLImageElement | null, w: number) =>
     img && img.naturalWidth ? (img.naturalHeight * w) / img.naturalWidth : 0;
 
-  // Ölçek: hiçbir kaynak görsel küçültülmesin (downsample yok).
-  // Her görselin (doğal genişlik / gösterim genişliği) oranının en büyüğü alınır.
   const ratios: number[] = [2];
   if (infoImg?.naturalWidth) ratios.push(infoImg.naturalWidth / info.width);
   if (logoImg?.naturalWidth) ratios.push(logoImg.naturalWidth / logoA.width);
@@ -640,7 +724,6 @@ export async function renderCombinedImage(
   const gapLogo = 16;
   const infoH = dispH(infoImg, info.width);
   const logoH = dispH(logoImg, logoA.width);
-  // Kaydırma (offset) = boşluk/itme olarak uygulanır; üst üste binmez.
   const logoX = Math.max(0, logoA.ox);
   const logoY = Math.max(0, logoA.oy);
   const infoX = logoX + logoA.width + gapLogo;
@@ -698,7 +781,7 @@ export function buildSingleImageHtml(
   const discTr = boldNames(esc(p.disclaimerTr), legalNames);
   const discEn = boldNames(esc(p.disclaimerEn), legalNames);
   return `<div style="font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
-  <p style="margin:0 0 14px 0;">${esc(f.greeting)}</p>
+  <p style="margin:0 0 14px 0;font-size:${sz('greeting')}pt;">${esc(f.greeting)}</p>
   <img src="${combined.url}" width="${combined.width}" alt="İmza" style="display:block;border:none;" />
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
     <tr>

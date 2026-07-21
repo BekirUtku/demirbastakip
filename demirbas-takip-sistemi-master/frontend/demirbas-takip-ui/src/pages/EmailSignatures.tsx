@@ -21,6 +21,7 @@ import {
   type CompanyKey,
   type SigFields,
   type SigStyle,
+  type FieldKey,
 } from '../services/signature';
 
 const FONT_OPTIONS: [string, string][] = [
@@ -105,20 +106,30 @@ export default function EmailSignatures() {
     setSigStyle(ns);
     setSignatureStyle(ns);
   };
+
+  const setFieldSize = (k: FieldKey, v: number) => {
+    const cur = sigStyle.fieldSizes ?? {};
+    applyStyle({ fieldSizes: { ...cur, [k]: v } });
+  };
+  const clearFieldSize = (k: FieldKey) => {
+    const cur = { ...(sigStyle.fieldSizes ?? {}) };
+    delete cur[k];
+    applyStyle({ fieldSizes: cur });
+  };
+  const customCount = Object.keys(sigStyle.fieldSizes ?? {}).length;
+
   const set = (k: keyof SigFields, v: string) =>
     setFields((prev) => ({ ...prev, [k]: v }));
 
   const detectCompany = (companyName: string): CompanyKey =>
     /ogaş|ogas/i.test(companyName || '') ? 'ogas' : 'lokum';
 
-  // Seçilen firma şablonuna karşılık gelen Firma kaydını bul
   const matchCompany = (key: CompanyKey) =>
     companies.find((c) => {
       const n = `${c.name ?? ''} ${c.companyName ?? ''}`.toLowerCase();
       return key === 'ogas' ? /oga[sş]/i.test(n) : /lokum/i.test(n);
     });
 
-  // Firma kaydının adresini adres satırlarına böl
   const companyAddressLines = (key: CompanyKey) => {
     const c = matchCompany(key);
     if (!c?.address) return null;
@@ -133,7 +144,6 @@ export default function EmailSignatures() {
     const company = detectCompany(p.companyName);
     const loc = locations.find((l) => l.id === p.signatureLocationId);
     const addr = companyAddressLines(company);
-    // Öncelik: personelin şubesi -> firma adresi -> imza lokasyonu
     const branchAddress = p.branchAddress ? String(p.branchAddress) : '';
     return {
       company,
@@ -167,7 +177,6 @@ export default function EmailSignatures() {
     setRawMode(false);
   };
 
-  // Kişi/alanlar değişince bilgi bloğunu otomatik PNG'ye çevir
   useEffect(() => {
     let cancelled = false;
     (format === 'compact'
@@ -498,32 +507,69 @@ export default function EmailSignatures() {
     label: string,
     key: keyof SigFields,
     opts: { textarea?: boolean; col?: string; format?: (v: string) => string } = {},
-  ) => (
-    <div className={`${opts.col ?? 'col-md-6'} mb-2`}>
-      <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 600 }}>
-        {label}
-      </label>
-      {opts.textarea ? (
-        <textarea
-          className="form-control"
-          rows={2}
-          value={fields[key] as string}
-          onChange={(e) => set(key, e.target.value)}
-        />
-      ) : (
-        <input
-          className="form-control"
-          value={fields[key] as string}
-          onChange={(e) => set(key, e.target.value)}
-          onBlur={
-            opts.format
-              ? (e) => set(key, opts.format!(e.target.value))
-              : undefined
-          }
-        />
-      )}
-    </div>
-  );
+  ) => {
+    const fk = key as FieldKey;
+    const perFieldSize = sigStyle.fieldSizes?.[fk];
+    return (
+      <div className={`${opts.col ?? 'col-md-6'} mb-2`}>
+        <div className="d-flex justify-content-between align-items-center mb-1">
+          <label className="form-label mb-0" style={{ fontSize: 12, fontWeight: 600 }}>
+            {label}
+          </label>
+          <div
+            className="d-flex align-items-center gap-1"
+            title="Bu alana özel punto (boş bırakılırsa genel punto kullanılır)"
+          >
+            <input
+              type="number"
+              min={6}
+              max={24}
+              placeholder={String(sigStyle.size)}
+              value={perFieldSize ?? ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '') clearFieldSize(fk);
+                else setFieldSize(fk, Number(v) || sigStyle.size);
+              }}
+              className="form-control form-control-sm"
+              style={{ width: 58, fontSize: 11, padding: '1px 4px', height: 22 }}
+            />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>pt</span>
+            {perFieldSize !== undefined && (
+              <button
+                type="button"
+                className="btn btn-sm btn-link p-0"
+                style={{ fontSize: 12, lineHeight: 1, textDecoration: 'none' }}
+                onClick={() => clearFieldSize(fk)}
+                title="Genel puntoya dön"
+              >
+                ↺
+              </button>
+            )}
+          </div>
+        </div>
+        {opts.textarea ? (
+          <textarea
+            className="form-control"
+            rows={2}
+            value={fields[key] as string}
+            onChange={(e) => set(key, e.target.value)}
+          />
+        ) : (
+          <input
+            className="form-control"
+            value={fields[key] as string}
+            onChange={(e) => set(key, e.target.value)}
+            onBlur={
+              opts.format
+                ? (e) => set(key, opts.format!(e.target.value))
+                : undefined
+            }
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -595,7 +641,7 @@ export default function EmailSignatures() {
                   max={20}
                   value={sigStyle.size}
                   onChange={(e) => applyStyle({ size: Number(e.target.value) || 9 })}
-                  title="Punto"
+                  title="Genel punto (alan bazlı özel punto girilmemiş satırlarda kullanılır)"
                 />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>pt</span>
               </div>
@@ -614,6 +660,19 @@ export default function EmailSignatures() {
                   title="YASAL UYARI / DISCLAIMER puntosu"
                 />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>pt</span>
+              </div>
+              <div className="d-flex justify-content-between align-items-center mt-2">
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Alan bazlı özel punto: {customCount}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => applyStyle({ fieldSizes: {} })}
+                  disabled={customCount === 0}
+                >
+                  Tüm alan puntolarını sıfırla
+                </button>
               </div>
             </div>
 
