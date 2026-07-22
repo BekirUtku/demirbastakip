@@ -227,7 +227,7 @@ export function buildSignatureHtml(
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;font-family:${STYLE.font};">
     <tr>
-      <td style="vertical-align:${p.logoValign};padding-right:16px;">
+      <td style="vertical-align:${p.logoValign};padding-right:4px;">
         <img src="${logoA.url}" width="${logoA.width}" alt="${esc(p.label)}" style="display:block;border:none;margin:${logoA.oy}px 0 0 ${logoA.ox}px;" />
       </td>
       ${infoCells}
@@ -725,7 +725,7 @@ export async function renderCombinedImage(
   if (efatImg?.naturalWidth) ratios.push(efatImg.naturalWidth / efat.width);
   const SC = Math.min(8, Math.max(3, Math.ceil(Math.max(...ratios))));
 
-  const gapLogo = 16;
+  const gapLogo = 4;
   const infoH = dispH(infoImg, info.width);
   const logoH = dispH(logoImg, logoA.width);
   const logoX = Math.max(0, logoA.ox);
