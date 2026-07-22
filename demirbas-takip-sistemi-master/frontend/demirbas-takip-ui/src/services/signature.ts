@@ -234,11 +234,15 @@ export function buildSignatureHtml(
     </tr>
   </table>
 
-  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;line-height:0;"><tr><td style="height:14px;line-height:14px;font-size:1px;">&nbsp;</td></tr></table>
+
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
     <tr>${bannerCells}<td style="vertical-align:middle;padding:0 0 0 4px;"><img src="${efat.url}" width="${efat.width}" alt="E-Fatura" style="display:block;border:none;margin:${efat.oy}px 0 0 ${efat.ox}px;" /></td></tr>
   </table>
 
-  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;line-height:0;"><tr><td style="height:14px;line-height:14px;font-size:1px;">&nbsp;</td></tr></table>
+
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;">
     <tr>
       <td style="border:1px solid #000000;padding:8px;font-family:${STYLE.font};font-size:${STYLE.discSize}pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
         <b>YASAL UYARI</b><br />${discTr}<br /><br />
@@ -783,7 +787,9 @@ export function buildSingleImageHtml(
   return `<div style="font-family:${STYLE.font};font-size:${STYLE.size}pt;color:#000000;line-height:1.35;margin:0;padding:0;text-align:left;max-width:920px;">
   <p style="margin:0 0 14px 0;font-size:${sz('greeting')}pt;">${esc(f.greeting)}</p>
   <img src="${combined.url}" width="${combined.width}" alt="İmza" style="display:block;border:none;" />
-  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:14px;max-width:700px;">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;line-height:0;"><tr><td style="height:14px;line-height:14px;font-size:1px;">&nbsp;</td></tr></table>
+
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:700px;">
     <tr>
       <td style="border:1px solid #000000;padding:8px;font-family:${STYLE.font};font-size:${STYLE.discSize}pt;color:#000000;line-height:1.35;word-break:break-word;overflow-wrap:break-word;">
         <b>YASAL UYARI</b><br />${discTr}<br /><br />
